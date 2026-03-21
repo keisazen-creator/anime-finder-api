@@ -50,9 +50,10 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <h1 className="font-display font-bold text-lg text-foreground shrink-0 tracking-tight">
-            <span className="text-primary">Kogemi</span>
-          </h1>
+          <div className="flex items-center gap-2 shrink-0">
+            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7" />
+            <span className="font-display font-bold text-lg text-primary tracking-tight">Kogemi</span>
+          </div>
           <SearchBar onSearch={handleSearch} isSearching={searching} />
         </div>
       </header>
