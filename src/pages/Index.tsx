@@ -4,6 +4,7 @@ import AnimeCard from "@/components/AnimeCard";
 import AnimeDetail from "@/components/AnimeDetail";
 import SearchBar from "@/components/SearchBar";
 import { Flame } from "lucide-react";
+import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const Index = () => {
   const [results, setResults] = useState<AnimeResult[]>([]);
