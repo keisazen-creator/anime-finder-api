@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrl } from "@/lib/anime-api";
+import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Monitor, Layers } from "lucide-react";
@@ -68,11 +69,31 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const seasonInfo = getSeasonInfo(title, anime.episodes);
   const totalEpisodes = seasonInfo.episodesPerSeason[season - 1] || 12;
 
+  // Restore last watch position
+  useEffect(() => {
+    const progress = getWatchProgress(anime.id);
+    if (progress) {
+      setSeason(progress.season);
+      setEpisode(progress.episode);
+    }
+  }, [anime.id]);
+
   const handleWatch = useCallback(async (ep: number, s?: number) => {
     const targetSeason = s ?? season;
     setLoading(true);
     setError(null);
     setEpisode(ep);
+
+    // Save progress
+    saveWatchProgress({
+      animeId: anime.id,
+      title,
+      coverImage: anime.coverImage.large,
+      season: targetSeason,
+      episode: ep,
+      totalEpisodes,
+      updatedAt: Date.now(),
+    });
     if (s !== undefined) setSeason(s);
     try {
       let id = imdbId;
