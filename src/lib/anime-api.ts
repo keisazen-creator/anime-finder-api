@@ -13,6 +13,26 @@ export interface AnimeResult {
   bannerImage?: string;
 }
 
+export const GENRE_LIST = [
+  "Trending",
+  "Action",
+  "Romance",
+  "Comedy",
+  "Fantasy",
+  "Adventure",
+  "Drama",
+  "Sci-Fi",
+  "Horror",
+  "Slice of Life",
+  "Mystery",
+  "Supernatural",
+  "Sports",
+  "Ecchi",
+  "Hentai",
+] as const;
+
+export type GenreFilter = (typeof GENRE_LIST)[number];
+
 export async function searchAnime(query: string): Promise<AnimeResult[]> {
   const response = await fetch("https://graphql.anilist.co", {
     method: "POST",
@@ -65,6 +85,37 @@ export async function getTrendingAnime(): Promise<AnimeResult[]> {
           }
         }
       `,
+    }),
+  });
+  const data = await response.json();
+  return data?.data?.Page?.media || [];
+}
+
+export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
+  const isAdult = genre === "Hentai";
+  const response = await fetch("https://graphql.anilist.co", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `
+        query ($genre: String, $isAdult: Boolean) {
+          Page(perPage: 18) {
+            media(type: ANIME, genre: $genre, sort: POPULARITY_DESC, isAdult: $isAdult) {
+              id
+              title { romaji english }
+              coverImage { large }
+              description
+              episodes
+              status
+              genres
+              averageScore
+              seasonYear
+              bannerImage
+            }
+          }
+        }
+      `,
+      variables: { genre, isAdult },
     }),
   });
   const data = await response.json();
