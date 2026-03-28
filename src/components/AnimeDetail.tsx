@@ -131,7 +131,8 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const changeSeason = (val: string) => {
     const s = parseInt(val);
     setSeason(s);
-    setEpisode(1);
+    const newStart = getAbsoluteStart(seasonInfo, s);
+    setEpisode(newStart);
     if (imdbId) {
       setStreamUrls(getStreamUrl(imdbId, s, 1));
     }
@@ -141,12 +142,14 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
     setServer(val as "primary" | "backup");
   };
 
+  const absEnd = absStart + seasonEpCount - 1;
+
   const prevEp = () => {
-    if (episode > 1) handleWatch(episode - 1);
+    if (episode > absStart) handleWatch(episode - 1);
   };
 
   const nextEp = () => {
-    if (episode < totalEpisodes) handleWatch(episode + 1);
+    if (episode < absEnd) handleWatch(episode + 1);
   };
 
   const closePlayer = () => {
@@ -211,10 +214,10 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
           </Select>
 
           <div className="flex gap-2 ml-auto">
-            <Button variant="secondary" size="sm" onClick={prevEp} disabled={episode <= 1} className="gap-1">
+            <Button variant="secondary" size="sm" onClick={prevEp} disabled={episode <= absStart} className="gap-1">
               <ChevronLeft className="w-4 h-4" /> Prev
             </Button>
-            <Button variant="secondary" size="sm" onClick={nextEp} disabled={episode >= totalEpisodes} className="gap-1">
+            <Button variant="secondary" size="sm" onClick={nextEp} disabled={episode >= absEnd} className="gap-1">
               Next <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -223,7 +226,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
         {/* Episode grid */}
         <div className="max-h-[35vh] overflow-y-auto bg-card border-t border-border p-3 shrink-0">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2">
-            {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => (
+            {Array.from({ length: seasonEpCount }, (_, i) => absStart + i).map((ep) => (
               <button
                 key={ep}
                 onClick={() => handleWatch(ep)}
@@ -280,7 +283,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
               </span>
             )}
             <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
-              {seasonInfo.totalSeasons > 1 ? `${seasonInfo.totalSeasons} seasons` : `${totalEpisodes} eps`}
+              {seasonInfo.totalSeasons > 1 ? `${seasonInfo.totalSeasons} seasons` : `${seasonEpCount} eps`}
             </span>
             {anime.status && (
               <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground capitalize">
@@ -326,19 +329,19 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={() => handleWatch(1)} disabled={loading} className="gap-2">
+            <Button onClick={() => handleWatch(absStart)} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Watch S{season}E1
+              Watch E{absStart}
             </Button>
           </div>
 
           {/* Episode grid */}
           <div>
             <p className="text-sm font-medium text-foreground mb-3">
-              Season {season} · {totalEpisodes} episodes
+              Season {season} · Episodes {absStart}–{absEnd}
             </p>
             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
-              {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => (
+              {Array.from({ length: seasonEpCount }, (_, i) => absStart + i).map((ep) => (
                 <Button
                   key={ep}
                   variant="secondary"
