@@ -17,11 +17,36 @@ const Index = () => {
   const [activeGenre, setActiveGenre] = useState<GenreFilter>("Trending");
   const [genreResults, setGenreResults] = useState<AnimeResult[]>([]);
   const [genreLoading, setGenreLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [recentlyWatched, setRecentlyWatched] = useState<WatchEntry[]>([]);
 
   useEffect(() => {
-    getTrendingAnime().then(setTrending);
+    let active = true;
+
+    const loadTrending = async () => {
+      setInitialLoading(true);
+      setLoadError(null);
+
+      try {
+        const data = await getTrendingAnime();
+        if (active) setTrending(data);
+      } catch {
+        if (active) {
+          setTrending([]);
+          setLoadError("Couldn't load anime right now.");
+        }
+      } finally {
+        if (active) setInitialLoading(false);
+      }
+    };
+
+    loadTrending();
     setRecentlyWatched(getRecentlyWatched());
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Refresh watch history when returning from detail
@@ -33,14 +58,20 @@ const Index = () => {
 
   const handleSearch = async (q: string) => {
     setQuery(q);
+    setLoadError(null);
+
     if (!q) {
       setResults([]);
       return;
     }
+
     setSearching(true);
     try {
       const data = await searchAnime(q);
       setResults(data);
+    } catch {
+      setResults([]);
+      setLoadError("Search is unavailable right now.");
     } finally {
       setSearching(false);
     }
@@ -48,14 +79,20 @@ const Index = () => {
 
   const handleGenreChange = async (genre: GenreFilter) => {
     setActiveGenre(genre);
+    setLoadError(null);
+
     if (genre === "Trending") {
       setGenreResults([]);
       return;
     }
+
     setGenreLoading(true);
     try {
       const data = await getAnimeByGenre(genre);
       setGenreResults(data);
+    } catch {
+      setGenreResults([]);
+      setLoadError("Couldn't load that genre right now.");
     } finally {
       setGenreLoading(false);
     }
@@ -67,7 +104,7 @@ const Index = () => {
     : activeGenre === "Trending"
     ? "Trending Now"
     : activeGenre;
-  const isLoading = searching || genreLoading;
+  const isLoading = searching || genreLoading || initialLoading;
 
   if (selected) {
     return (
@@ -175,7 +212,7 @@ const Index = () => {
 
         {displayList.length === 0 && !isLoading && (
           <p className="text-muted-foreground text-sm text-center py-16">
-            {query ? "No anime found. Try a different search." : "Loading..."}
+            {query ? "No anime found. Try a different search." : loadError || "No anime available right now."}
           </p>
         )}
 

@@ -1,4 +1,6 @@
 const TMDB_KEY = "fdc7143eae0ef3d73d0484e1fb87056c";
+const KOGEMI_API = "https://kogemi-api-3.onrender.com";
+const REQUEST_TIMEOUT = 8000;
 
 export interface AnimeResult {
   id: number;
@@ -33,12 +35,106 @@ export const GENRE_LIST = [
 
 export type GenreFilter = (typeof GENRE_LIST)[number];
 
-export async function searchAnime(query: string): Promise<AnimeResult[]> {
-  const response = await fetch("https://graphql.anilist.co", {
+interface AniListPageResponse {
+  data?: {
+    Page?: {
+      media?: AnimeResult[];
+    };
+  };
+}
+
+interface AniListMediaResponse {
+  data?: {
+    Media?: AnimeResult | null;
+  };
+}
+
+interface TmdbSearchResult {
+  id: number;
+  name?: string;
+  original_name?: string;
+  original_language?: string;
+  genre_ids?: number[];
+  popularity?: number;
+}
+
+interface TmdbSearchResponse {
+  results?: TmdbSearchResult[];
+}
+
+interface TmdbDetailResponse {
+  external_ids?: {
+    imdb_id?: string | null;
+  };
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data as T;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function postAniList<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  return fetchJson<T>("https://graphql.anilist.co", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `
+    body: JSON.stringify({ query, variables }),
+  });
+}
+
+function normalizeAnimeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/\bseason\s+\d+\b/g, " ")
+    .replace(/\bpart\s+\d+\b/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreTmdbCandidate(candidate: TmdbSearchResult, normalizedTitle: string): number {
+  const names = [candidate.name, candidate.original_name]
+    .filter(Boolean)
+    .map((name) => normalizeAnimeTitle(name as string));
+
+  let score = 0;
+
+  if (names.includes(normalizedTitle)) score += 120;
+  if (names.some((name) => name.startsWith(normalizedTitle) || normalizedTitle.startsWith(name))) score += 70;
+  if (names.some((name) => name.includes(normalizedTitle) || normalizedTitle.includes(name))) score += 35;
+  if (candidate.genre_ids?.includes(16)) score += 60;
+  if (candidate.original_language === "ja") score += 25;
+  if (candidate.original_language === "en" && !candidate.genre_ids?.includes(16)) score -= 40;
+  score += Math.min(candidate.popularity ?? 0, 100) / 20;
+
+  return score;
+}
+
+export async function searchAnime(query: string): Promise<AnimeResult[]> {
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return [];
+
+  try {
+    return await fetchJson<AnimeResult[]>(`${KOGEMI_API}/search?q=${encodeURIComponent(cleanQuery)}`);
+  } catch {
+    const data = await postAniList<AniListPageResponse>(
+      `
         query ($search: String) {
           Page(perPage: 18) {
             media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
@@ -55,81 +151,43 @@ export async function searchAnime(query: string): Promise<AnimeResult[]> {
           }
         }
       `,
-      variables: { search: query },
-    }),
-  });
-  const data = await response.json();
-  return data?.data?.Page?.media || [];
+      { search: cleanQuery }
+    );
+
+    return data?.data?.Page?.media || [];
+  }
 }
 
 export async function getTrendingAnime(): Promise<AnimeResult[]> {
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `
-        query {
-          Page(perPage: 18) {
-            media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
-              id
-              title { romaji english }
-              coverImage { large }
-              description
-              episodes
-              status
-              genres
-              averageScore
-              seasonYear
-              bannerImage
-            }
-          }
+  const data = await postAniList<AniListPageResponse>(`
+    query {
+      Page(perPage: 18) {
+        media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
+          id
+          title { romaji english }
+          coverImage { large }
+          description
+          episodes
+          status
+          genres
+          averageScore
+          seasonYear
+          bannerImage
         }
-      `,
-    }),
-  });
-  const data = await response.json();
+      }
+    }
+  `);
+
   return data?.data?.Page?.media || [];
 }
 
 export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
   const isAdult = genre === "Hentai";
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `
-        query ($genre: String, $isAdult: Boolean) {
-          Page(perPage: 18) {
-            media(type: ANIME, genre: $genre, sort: POPULARITY_DESC, isAdult: $isAdult) {
-              id
-              title { romaji english }
-              coverImage { large }
-              description
-              episodes
-              status
-              genres
-              averageScore
-              seasonYear
-              bannerImage
-            }
-          }
-        }
-      `,
-      variables: { genre, isAdult },
-    }),
-  });
-  const data = await response.json();
-  return data?.data?.Page?.media || [];
-}
-
-export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `
-        query ($id: Int) {
-          Media(id: $id, type: ANIME) {
+  const data = await postAniList<AniListPageResponse>(
+    `
+      query ($genre: String, $isAdult: Boolean) {
+        Page(perPage: 18) {
+          media(type: ANIME, genre: $genre, sort: POPULARITY_DESC, isAdult: $isAdult) {
             id
             title { romaji english }
             coverImage { large }
@@ -142,11 +200,35 @@ export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
             bannerImage
           }
         }
-      `,
-      variables: { id },
-    }),
-  });
-  const data = await response.json();
+      }
+    `,
+    { genre, isAdult }
+  );
+
+  return data?.data?.Page?.media || [];
+}
+
+export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
+  const data = await postAniList<AniListMediaResponse>(
+    `
+      query ($id: Int) {
+        Media(id: $id, type: ANIME) {
+          id
+          title { romaji english }
+          coverImage { large }
+          description
+          episodes
+          status
+          genres
+          averageScore
+          seasonYear
+          bannerImage
+        }
+      }
+    `,
+    { id }
+  );
+
   return data?.data?.Media || null;
 }
 
@@ -156,32 +238,35 @@ export interface ImdbResult {
 }
 
 export async function getImdbId(title: string): Promise<ImdbResult | null> {
-  const cleanTitle = title.split(":")[0].replace(/season \d+/i, "").trim();
+  const cleanTitle = normalizeAnimeTitle(title);
+  if (!cleanTitle) return null;
 
-  const search = await fetch(
+  const searchData = await fetchJson<TmdbSearchResponse>(
     `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(cleanTitle)}`
   );
-  const data = await search.json();
-  if (!data.results?.length) return null;
 
-  const best =
-    data.results.find((r: any) =>
-      r.name.toLowerCase().includes(cleanTitle.toLowerCase())
-    ) || data.results[0];
+  const rankedResults = (searchData.results || [])
+    .map((result) => ({ result, score: scoreTmdbCandidate(result, cleanTitle) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 
-  const details = await fetch(
-    `https://api.themoviedb.org/3/tv/${best.id}?api_key=${TMDB_KEY}&append_to_response=external_ids`
-  );
-  const detailData = await details.json();
-  const imdb = detailData?.external_ids?.imdb_id;
-  if (!imdb) return null;
+  for (const candidate of rankedResults) {
+    const detailData = await fetchJson<TmdbDetailResponse>(
+      `https://api.themoviedb.org/3/tv/${candidate.result.id}?api_key=${TMDB_KEY}&append_to_response=external_ids`
+    );
 
-  return { imdb, tmdb: best.id };
+    const imdb = detailData?.external_ids?.imdb_id;
+    if (imdb) {
+      return { imdb, tmdb: candidate.result.id };
+    }
+  }
+
+  return null;
 }
 
 export function getStreamUrl(imdb: string, season = 1, episode = 1) {
   return {
-    primary: `https://vidfast.pro/tv/${imdb}/${season}/${episode}?autoPlay=true`,
-    backup: `https://vidsrc.xyz/embed/tv/${imdb}/${season}/${episode}`,
+    primary: `https://vidfast.pro/tv/${imdb}/${season}/${episode}?autoPlay=true&theme=7c3aed`,
+    backup: `https://vidsrc.xyz/embed/tv?imdb=${imdb}&season=${season}&episode=${episode}`,
   };
 }
