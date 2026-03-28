@@ -54,10 +54,19 @@ function getSeasonInfo(title: string, apiEpisodes?: number): SeasonInfo {
   return { totalSeasons: 1, episodesPerSeason: [eps] };
 }
 
+// Calculate the absolute starting episode number for a given season
+function getAbsoluteStart(seasonInfo: SeasonInfo, season: number): number {
+  let start = 1;
+  for (let i = 0; i < season - 1; i++) {
+    start += seasonInfo.episodesPerSeason[i] || 0;
+  }
+  return start;
+}
+
 const AnimeDetail = ({ anime, onBack }: Props) => {
   const [loading, setLoading] = useState(false);
   const [streamUrls, setStreamUrls] = useState<{ primary: string; backup: string } | null>(null);
-  const [episode, setEpisode] = useState(1);
+  const [episode, setEpisode] = useState(1); // absolute episode number
   const [season, setSeason] = useState(1);
   const [server, setServer] = useState<"primary" | "backup">("primary");
   const [error, setError] = useState<string | null>(null);
@@ -67,31 +76,35 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
   const seasonInfo = getSeasonInfo(title, anime.episodes);
-  const totalEpisodes = seasonInfo.episodesPerSeason[season - 1] || 12;
+  const seasonEpCount = seasonInfo.episodesPerSeason[season - 1] || 12;
+  const absStart = getAbsoluteStart(seasonInfo, season);
 
   // Restore last watch position
   useEffect(() => {
     const progress = getWatchProgress(anime.id);
     if (progress) {
       setSeason(progress.season);
-      setEpisode(progress.episode);
+      setEpisode(progress.episode); // stored as absolute
     }
   }, [anime.id]);
 
-  const handleWatch = useCallback(async (ep: number, s?: number) => {
+  const handleWatch = useCallback(async (absEp: number, s?: number) => {
     const targetSeason = s ?? season;
     setLoading(true);
     setError(null);
-    setEpisode(ep);
+    setEpisode(absEp);
 
-    // Save progress
+    const targetAbsStart = s !== undefined ? getAbsoluteStart(seasonInfo, s) : absStart;
+    const relativeEp = absEp - targetAbsStart + 1;
+
+    // Save progress with absolute episode number
     saveWatchProgress({
       animeId: anime.id,
       title,
       coverImage: anime.coverImage.large,
       season: targetSeason,
-      episode: ep,
-      totalEpisodes,
+      episode: absEp,
+      totalEpisodes: seasonInfo.episodesPerSeason.reduce((a, b) => a + b, 0),
       updatedAt: Date.now(),
     });
     if (s !== undefined) setSeason(s);
@@ -106,14 +119,14 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
         id = result.imdb;
         setImdbId(id);
       }
-      setStreamUrls(getStreamUrl(id, targetSeason, ep));
+      setStreamUrls(getStreamUrl(id, targetSeason, relativeEp));
       setPlayerOpen(true);
     } catch {
       setError("Failed to fetch streaming link.");
     } finally {
       setLoading(false);
     }
-  }, [imdbId, title, season]);
+  }, [imdbId, title, season, seasonInfo, absStart]);
 
   const changeSeason = (val: string) => {
     const s = parseInt(val);
