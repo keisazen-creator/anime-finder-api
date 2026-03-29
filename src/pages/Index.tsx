@@ -108,6 +108,10 @@ const Index = () => {
     : activeGenre;
   const isLoading = searching || genreLoading || initialLoading;
 
+  if (page === "history") {
+    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { setSelected(a); setPage("home"); }} />;
+  }
+
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
