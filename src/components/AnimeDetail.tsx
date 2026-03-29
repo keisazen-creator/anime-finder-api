@@ -182,6 +182,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
         {/* Player */}
         <div className="flex-1 min-h-0 bg-black">
           <iframe
+            key={currentUrl}
             src={currentUrl}
             className="w-full h-full border-none"
             allowFullScreen
