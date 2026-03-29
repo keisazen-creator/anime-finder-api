@@ -3,12 +3,14 @@ import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeR
 import { getRecentlyWatched, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import AnimeDetail from "@/components/AnimeDetail";
+import HistoryPage from "@/pages/History";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight } from "lucide-react";
+import { Flame, History, ChevronRight, BookOpen } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const Index = () => {
+  const [page, setPage] = useState<"home" | "history">("home");
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
   const [selected, setSelected] = useState<AnimeResult | null>(null);
