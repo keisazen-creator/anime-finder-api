@@ -108,9 +108,19 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
     );
   }, [anime.id, seasonInfo]);
 
-  const handleWatch = useCallback(async (absEp: number, s?: number) => {
+  // Fetch IMDB in background (only needed for vidfast/vidsrc fallback)
+  useEffect(() => {
+    let active = true;
+    if (!imdbId) {
+      getImdbId(title).then((result) => {
+        if (active && result) setImdbId(result.imdb);
+      }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [title, imdbId]);
+
+  const handleWatch = useCallback((absEp: number, s?: number) => {
     const targetSeason = s ?? season;
-    setLoading(true);
     setError(null);
     setEpisode(absEp);
 
@@ -125,22 +135,8 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
     });
     if (s !== undefined) setSeason(s);
 
-    try {
-      let id = imdbId;
-      if (!id) {
-        const result = await getImdbId(title);
-        if (result) {
-          id = result.imdb;
-          setImdbId(id);
-        }
-      }
-      setStreamUrls(buildStream(absEp, targetSeason, lang, id));
-      setPlayerOpen(true);
-    } catch {
-      setError("Failed to fetch streaming link.");
-    } finally {
-      setLoading(false);
-    }
+    setStreamUrls(buildStream(absEp, targetSeason, lang, imdbId));
+    setPlayerOpen(true);
   }, [imdbId, title, season, seasonInfo, lang, buildStream, anime]);
 
   const changeSeason = (val: string) => {
