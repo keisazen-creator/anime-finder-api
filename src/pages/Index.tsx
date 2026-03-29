@@ -3,12 +3,14 @@ import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeR
 import { getRecentlyWatched, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import AnimeDetail from "@/components/AnimeDetail";
+import HistoryPage from "@/pages/History";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight } from "lucide-react";
+import { Flame, History, ChevronRight, BookOpen } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const Index = () => {
+  const [page, setPage] = useState<"home" | "history">("home");
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
   const [selected, setSelected] = useState<AnimeResult | null>(null);
@@ -106,6 +108,10 @@ const Index = () => {
     : activeGenre;
   const isLoading = searching || genreLoading || initialLoading;
 
+  if (page === "history") {
+    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { setSelected(a); setPage("home"); }} />;
+  }
+
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
@@ -122,10 +128,17 @@ const Index = () => {
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 shrink-0">
-            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7" />
-            <span className="font-display font-bold text-lg text-primary tracking-tight">Kogemi</span>
+            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7 cursor-pointer" onClick={() => { setSelected(null); setPage("home"); }} />
+            <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
           </div>
           <SearchBar onSearch={handleSearch} isSearching={searching} />
+          <button
+            onClick={() => setPage("history")}
+            className="shrink-0 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Watch History & Favorites"
+          >
+            <BookOpen className="w-5 h-5" />
+          </button>
         </div>
       </header>
 

@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
+import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic, Heart } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
@@ -79,6 +80,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbId, setImdbId] = useState<string | null>(null);
+  const [faved, setFaved] = useState(() => isFavorite(anime.id));
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
@@ -300,9 +302,20 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
         </div>
 
         <div className="flex-1 space-y-4">
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight" style={{ lineHeight: "1.15" }}>
-            {title}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight" style={{ lineHeight: "1.15" }}>
+              {title}
+            </h1>
+            <button
+              onClick={() => {
+                toggleFavorite({ animeId: anime.id, title, coverImage: anime.coverImage.large });
+                setFaved((p) => !p);
+              }}
+              className="shrink-0 mt-1 p-2 rounded-full transition-colors hover:bg-secondary active:scale-90"
+            >
+              <Heart className={`w-5 h-5 ${faved ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+            </button>
+          </div>
 
           <div className="flex flex-wrap gap-2 items-center text-sm">
             {score && (
