@@ -128,11 +128,17 @@ const Index = () => {
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 shrink-0">
-            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7" />
-            <span className="font-display font-bold text-lg text-primary tracking-tight">Kogemi</span>
+            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7 cursor-pointer" onClick={() => { setSelected(null); setPage("home"); }} />
+            <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
           </div>
           <SearchBar onSearch={handleSearch} isSearching={searching} />
-        </div>
+          <button
+            onClick={() => setPage("history")}
+            className="shrink-0 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Watch History & Favorites"
+          >
+            <BookOpen className="w-5 h-5" />
+          </button>
       </header>
 
       {/* Genre tabs */}
