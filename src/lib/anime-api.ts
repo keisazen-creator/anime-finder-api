@@ -264,9 +264,37 @@ export async function getImdbId(title: string): Promise<ImdbResult | null> {
   return null;
 }
 
-export function getStreamUrl(imdb: string, season = 1, episode = 1) {
+export type StreamLang = "sub" | "dub";
+
+export interface StreamServers {
+  megaplayAniwatch: string;
+  megaplayMal: string;
+  megaplayAni: string;
+  vidfast: string;
+  vidsrc: string;
+}
+
+export function getStreamUrls(
+  anilistId: number,
+  malId: number | null,
+  episode: number,
+  lang: StreamLang = "sub",
+  imdb?: string,
+  season?: number,
+  relativeEp?: number
+): StreamServers {
+  const epId = anilistId * 100 + episode; // rough unique ep id
   return {
-    primary: `https://vidfast.pro/tv/${imdb}/${season}/${episode}?autoPlay=true&theme=7c3aed`,
-    backup: `https://vidsrc.xyz/embed/tv?imdb=${imdb}&season=${season}&episode=${episode}`,
+    megaplayAniwatch: `https://megaplay.buzz/stream/s-2/${epId}/${lang}`,
+    megaplayMal: malId
+      ? `https://megaplay.buzz/stream/mal/${malId}/${episode}/${lang}`
+      : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
+    megaplayAni: `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
+    vidfast: imdb
+      ? `https://vidfast.pro/tv/${imdb}/${season ?? 1}/${relativeEp ?? episode}?autoPlay=true&theme=7c3aed`
+      : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
+    vidsrc: imdb
+      ? `https://vidsrc.xyz/embed/tv?imdb=${imdb}&season=${season ?? 1}&episode=${relativeEp ?? episode}`
+      : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
   };
 }

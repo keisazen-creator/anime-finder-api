@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
-import { getImdbId, getStreamUrl } from "@/lib/anime-api";
+import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Monitor, Layers } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
@@ -16,10 +16,18 @@ interface SeasonInfo {
   episodesPerSeason: number[];
 }
 
+type ServerKey = keyof StreamServers;
+
+const SERVER_LABELS: Record<ServerKey, string> = {
+  megaplayAniwatch: "MegaPlay 1",
+  megaplayMal: "MegaPlay 2",
+  megaplayAni: "MegaPlay 3",
+  vidfast: "VidFast",
+  vidsrc: "VidSrc",
+};
+
 function getSeasonInfo(title: string, apiEpisodes?: number): SeasonInfo {
   const t = title.toLowerCase();
-
-  // Known multi-season anime
   if (t.includes("one piece")) return { totalSeasons: 21, episodesPerSeason: Array(21).fill(50).map((_, i) => i === 20 ? 50 : 52) };
   if (t.includes("naruto shippuden")) return { totalSeasons: 21, episodesPerSeason: Array(21).fill(24) };
   if (t.includes("naruto") && !t.includes("shippuden")) return { totalSeasons: 9, episodesPerSeason: Array(9).fill(25).map((_, i) => i === 8 ? 20 : 25) };
@@ -43,7 +51,6 @@ function getSeasonInfo(title: string, apiEpisodes?: number): SeasonInfo {
   if (t.includes("overlord")) return { totalSeasons: 4, episodesPerSeason: [13, 13, 13, 13] };
   if (t.includes("konosuba")) return { totalSeasons: 3, episodesPerSeason: [10, 10, 11] };
 
-  // Default: single season
   const eps = apiEpisodes || 24;
   if (eps > 26) {
     const seasons = Math.ceil(eps / 13);
@@ -54,7 +61,6 @@ function getSeasonInfo(title: string, apiEpisodes?: number): SeasonInfo {
   return { totalSeasons: 1, episodesPerSeason: [eps] };
 }
 
-// Calculate the absolute starting episode number for a given season
 function getAbsoluteStart(seasonInfo: SeasonInfo, season: number): number {
   let start = 1;
   for (let i = 0; i < season - 1; i++) {
@@ -65,10 +71,11 @@ function getAbsoluteStart(seasonInfo: SeasonInfo, season: number): number {
 
 const AnimeDetail = ({ anime, onBack }: Props) => {
   const [loading, setLoading] = useState(false);
-  const [streamUrls, setStreamUrls] = useState<{ primary: string; backup: string } | null>(null);
-  const [episode, setEpisode] = useState(1); // absolute episode number
+  const [streamUrls, setStreamUrls] = useState<StreamServers | null>(null);
+  const [episode, setEpisode] = useState(1);
   const [season, setSeason] = useState(1);
-  const [server, setServer] = useState<"primary" | "backup">("primary");
+  const [server, setServer] = useState<ServerKey>("megaplayAni");
+  const [lang, setLang] = useState<StreamLang>("sub");
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbId, setImdbId] = useState<string | null>(null);
@@ -79,14 +86,27 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const seasonEpCount = seasonInfo.episodesPerSeason[season - 1] || 12;
   const absStart = getAbsoluteStart(seasonInfo, season);
 
-  // Restore last watch position
   useEffect(() => {
     const progress = getWatchProgress(anime.id);
     if (progress) {
       setSeason(progress.season);
-      setEpisode(progress.episode); // stored as absolute
+      setEpisode(progress.episode);
     }
   }, [anime.id]);
+
+  const buildStream = useCallback((absEp: number, s: number, currentLang: StreamLang, currentImdb: string | null) => {
+    const targetAbsStart = getAbsoluteStart(seasonInfo, s);
+    const relativeEp = absEp - targetAbsStart + 1;
+    return getStreamUrls(
+      anime.id,
+      null,
+      absEp,
+      currentLang,
+      currentImdb ?? undefined,
+      s,
+      relativeEp
+    );
+  }, [anime.id, seasonInfo]);
 
   const handleWatch = useCallback(async (absEp: number, s?: number) => {
     const targetSeason = s ?? season;
@@ -94,10 +114,6 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
     setError(null);
     setEpisode(absEp);
 
-    const targetAbsStart = s !== undefined ? getAbsoluteStart(seasonInfo, s) : absStart;
-    const relativeEp = absEp - targetAbsStart + 1;
-
-    // Save progress with absolute episode number
     saveWatchProgress({
       animeId: anime.id,
       title,
@@ -108,54 +124,46 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
       updatedAt: Date.now(),
     });
     if (s !== undefined) setSeason(s);
+
     try {
       let id = imdbId;
       if (!id) {
         const result = await getImdbId(title);
-        if (!result) {
-          setError("Could not find this anime on TMDB. Try a different title.");
-          return;
+        if (result) {
+          id = result.imdb;
+          setImdbId(id);
         }
-        id = result.imdb;
-        setImdbId(id);
       }
-      setStreamUrls(getStreamUrl(id, targetSeason, relativeEp));
+      setStreamUrls(buildStream(absEp, targetSeason, lang, id));
       setPlayerOpen(true);
     } catch {
       setError("Failed to fetch streaming link.");
     } finally {
       setLoading(false);
     }
-  }, [imdbId, title, season, seasonInfo, absStart]);
+  }, [imdbId, title, season, seasonInfo, lang, buildStream, anime]);
 
   const changeSeason = (val: string) => {
     const s = parseInt(val);
     setSeason(s);
     const newStart = getAbsoluteStart(seasonInfo, s);
     setEpisode(newStart);
-    if (imdbId) {
-      setStreamUrls(getStreamUrl(imdbId, s, 1));
+    if (playerOpen && streamUrls) {
+      setStreamUrls(buildStream(newStart, s, lang, imdbId));
     }
   };
 
-  const switchServer = (val: string) => {
-    setServer(val as "primary" | "backup");
+  const toggleLang = (newLang: StreamLang) => {
+    setLang(newLang);
+    if (playerOpen) {
+      setStreamUrls(buildStream(episode, season, newLang, imdbId));
+    }
   };
 
   const absEnd = absStart + seasonEpCount - 1;
-
-  const prevEp = () => {
-    if (episode > absStart) handleWatch(episode - 1);
-  };
-
-  const nextEp = () => {
-    if (episode < absEnd) handleWatch(episode + 1);
-  };
-
-  const closePlayer = () => {
-    setPlayerOpen(false);
-    setStreamUrls(null);
-  };
+  const prevEp = () => { if (episode > absStart) handleWatch(episode - 1); };
+  const nextEp = () => { if (episode < absEnd) handleWatch(episode + 1); };
+  const closePlayer = () => { setPlayerOpen(false); setStreamUrls(null); };
 
   const description = anime.description?.replace(/<[^>]*>/g, "") || "";
   const currentUrl = streamUrls ? streamUrls[server] : "";
@@ -165,14 +173,14 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
     return (
       <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-up">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0">
-          <Button variant="destructive" size="sm" onClick={closePlayer} className="gap-1.5">
-            <X className="w-4 h-4" /> Close
+        <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0">
+          <Button variant="destructive" size="sm" onClick={closePlayer} className="gap-1.5 h-8 text-xs">
+            <X className="w-3.5 h-3.5" /> Close
           </Button>
-          <span className="text-sm font-medium text-foreground">
-            S{season} · E{episode}
+          <span className="text-xs font-medium text-foreground">
+            S{season} · E{episode} · {lang.toUpperCase()}
           </span>
-          <div className="w-20" />
+          <div className="w-16" />
         </div>
 
         {/* Player */}
@@ -186,51 +194,80 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
           />
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-2 px-4 py-3 bg-card border-t border-border shrink-0 flex-wrap">
-          {seasonInfo.totalSeasons > 1 && (
-            <Select value={String(season)} onValueChange={changeSeason}>
-              <SelectTrigger className="w-[110px] h-9 text-xs">
-                <Layers className="w-3.5 h-3.5 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: seasonInfo.totalSeasons }, (_, i) => (
-                  <SelectItem key={i + 1} value={String(i + 1)}>Season {i + 1}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        {/* Server + Controls */}
+        <div className="bg-card border-t border-border shrink-0">
+          {/* Server buttons */}
+          <div className="flex gap-1.5 px-3 py-2 overflow-x-auto">
+            {(Object.keys(SERVER_LABELS) as ServerKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setServer(key)}
+                className={`shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                  server === key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                {SERVER_LABELS[key]}
+              </button>
+            ))}
+          </div>
 
-          <Select value={server} onValueChange={switchServer}>
-            <SelectTrigger className="w-[110px] h-9 text-xs">
-              <Monitor className="w-3.5 h-3.5 mr-1" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="primary">Primary</SelectItem>
-              <SelectItem value="backup">Backup</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Sub/Dub + Nav */}
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-border flex-wrap">
+            {/* Sub/Dub toggle */}
+            <div className="flex bg-secondary rounded-md overflow-hidden">
+              <button
+                onClick={() => toggleLang("sub")}
+                className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                  lang === "sub" ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                <Globe className="w-3 h-3" /> SUB
+              </button>
+              <button
+                onClick={() => toggleLang("dub")}
+                className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                  lang === "dub" ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                <Mic className="w-3 h-3" /> DUB
+              </button>
+            </div>
 
-          <div className="flex gap-2 ml-auto">
-            <Button variant="secondary" size="sm" onClick={prevEp} disabled={episode <= absStart} className="gap-1">
-              <ChevronLeft className="w-4 h-4" /> Prev
-            </Button>
-            <Button variant="secondary" size="sm" onClick={nextEp} disabled={episode >= absEnd} className="gap-1">
-              Next <ChevronRight className="w-4 h-4" />
-            </Button>
+            {seasonInfo.totalSeasons > 1 && (
+              <Select value={String(season)} onValueChange={changeSeason}>
+                <SelectTrigger className="w-[100px] h-8 text-[11px]">
+                  <Layers className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: seasonInfo.totalSeasons }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>S{i + 1}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex gap-1.5 ml-auto">
+              <Button variant="secondary" size="sm" onClick={prevEp} disabled={episode <= absStart} className="gap-1 h-8 text-xs">
+                <ChevronLeft className="w-3.5 h-3.5" /> Prev
+              </Button>
+              <Button variant="secondary" size="sm" onClick={nextEp} disabled={episode >= absEnd} className="gap-1 h-8 text-xs">
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Episode grid */}
-        <div className="max-h-[35vh] overflow-y-auto bg-card border-t border-border p-3 shrink-0">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2">
+        <div className="max-h-[30vh] overflow-y-auto bg-card border-t border-border p-2.5 shrink-0">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-1.5">
             {Array.from({ length: seasonEpCount }, (_, i) => absStart + i).map((ep) => (
               <button
                 key={ep}
                 onClick={() => handleWatch(ep)}
-                className={`h-9 rounded-md text-xs font-medium transition-colors ${
+                className={`h-8 rounded-md text-[11px] font-medium transition-colors ${
                   ep === episode
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
@@ -278,9 +315,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
               </span>
             )}
             {anime.seasonYear && (
-              <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
-                {anime.seasonYear}
-              </span>
+              <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">{anime.seasonYear}</span>
             )}
             <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
               {seasonInfo.totalSeasons > 1 ? `${seasonInfo.totalSeasons} seasons` : `${seasonEpCount} eps`}
@@ -295,25 +330,40 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
           {anime.genres && (
             <div className="flex flex-wrap gap-1.5">
               {anime.genres.map((g) => (
-                <span key={g} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                  {g}
-                </span>
+                <span key={g} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{g}</span>
               ))}
             </div>
           )}
 
           {description && (
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-prose line-clamp-4">
-              {description}
-            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-prose line-clamp-4">{description}</p>
           )}
 
           {error && (
             <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
           )}
 
-          {/* Season + Play */}
+          {/* Sub/Dub + Season + Play */}
           <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex bg-secondary rounded-md overflow-hidden">
+              <button
+                onClick={() => setLang("sub")}
+                className={`flex items-center gap-1 px-3 py-2 text-xs font-medium transition-colors ${
+                  lang === "sub" ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" /> SUB
+              </button>
+              <button
+                onClick={() => setLang("dub")}
+                className={`flex items-center gap-1 px-3 py-2 text-xs font-medium transition-colors ${
+                  lang === "dub" ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" /> DUB
+              </button>
+            </div>
+
             {seasonInfo.totalSeasons > 1 && (
               <Select value={String(season)} onValueChange={changeSeason}>
                 <SelectTrigger className="w-[140px] h-10">
