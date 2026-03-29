@@ -80,6 +80,7 @@ const AnimeDetail = ({ anime, onBack }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbId, setImdbId] = useState<string | null>(null);
+  const [faved, setFaved] = useState(() => isFavorite(anime.id));
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
