@@ -46,3 +46,12 @@ export function getRecentlyWatched(limit = 6): WatchEntry[] {
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, limit);
 }
+
+export function removeFromHistory(animeId: number) {
+  const history = getWatchHistory().filter((h) => h.animeId !== animeId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+}
+
+export function clearWatchHistory() {
+  localStorage.removeItem(STORAGE_KEY);
+}
