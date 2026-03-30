@@ -3,6 +3,7 @@ import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
+import AnimeRecommendations from "@/components/AnimeRecommendations";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic, Heart } from "lucide-react";
