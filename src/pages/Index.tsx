@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
-import { getRecentlyWatched, type WatchEntry } from "@/lib/watch-history";
+import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import AnimeDetail from "@/components/AnimeDetail";
 import HistoryPage from "@/pages/History";

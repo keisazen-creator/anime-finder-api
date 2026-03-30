@@ -421,6 +421,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               ))}
             </div>
           </div>
+          {onSelect && <AnimeRecommendations anime={anime} onSelect={onSelect} />}
         </div>
       </div>
     </div>
