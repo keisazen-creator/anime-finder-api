@@ -11,6 +11,7 @@ import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, G
 interface Props {
   anime: AnimeResult;
   onBack: () => void;
+  onSelect?: (anime: AnimeResult) => void;
 }
 
 interface SeasonInfo {
