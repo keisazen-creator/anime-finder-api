@@ -171,9 +171,11 @@ const Index = () => {
         {/* Continue Watching */}
         {!query && recentlyWatched.length > 0 && activeGenre === "Trending" && (
           <section className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-display font-semibold text-foreground">Continue Watching</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-display font-semibold text-foreground">Continue Watching</h2>
+              </div>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2.5">
               {recentlyWatched.map((entry) => (
