@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { addSearchQuery } from "@/lib/search-history";
 import SearchHistory from "@/components/SearchHistory";
@@ -12,9 +12,34 @@ const SearchBar = ({ onSearch, isSearching }: Props) => {
   const [value, setValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounced live search as user types
+  const debouncedSearch = useCallback((q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (q.trim().length >= 2) {
+        onSearch(q.trim());
+      }
+    }, 400);
+  }, [onSearch]);
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setValue(v);
+    if (v.trim()) {
+      setShowHistory(false);
+      debouncedSearch(v);
+    } else {
+      onSearch("");
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (value.trim()) {
       addSearchQuery(value.trim());
       onSearch(value.trim());
@@ -23,6 +48,7 @@ const SearchBar = ({ onSearch, isSearching }: Props) => {
   };
 
   const handleClear = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setValue("");
     onSearch("");
     setShowHistory(false);
@@ -42,7 +68,7 @@ const SearchBar = ({ onSearch, isSearching }: Props) => {
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleChange}
         onFocus={() => !value && setShowHistory(true)}
         onBlur={() => setTimeout(() => setShowHistory(false), 200)}
         placeholder="Search anime..."
