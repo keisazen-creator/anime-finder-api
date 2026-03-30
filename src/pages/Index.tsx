@@ -5,7 +5,7 @@ import AnimeCard from "@/components/AnimeCard";
 import AnimeDetail from "@/components/AnimeDetail";
 import HistoryPage from "@/pages/History";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight, BookOpen } from "lucide-react";
+import { Flame, History, ChevronRight, BookOpen, X } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
@@ -116,7 +116,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <AnimeDetail anime={selected} onBack={() => setSelected(null)} />
+          <AnimeDetail anime={selected} onBack={() => setSelected(null)} onSelect={(a) => setSelected(a)} />
         </div>
       </div>
     );
