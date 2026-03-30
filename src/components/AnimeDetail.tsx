@@ -72,7 +72,7 @@ function getAbsoluteStart(seasonInfo: SeasonInfo, season: number): number {
   return start;
 }
 
-const AnimeDetail = ({ anime, onBack }: Props) => {
+const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [loading, setLoading] = useState(false);
   const [streamUrls, setStreamUrls] = useState<StreamServers | null>(null);
   const [episode, setEpisode] = useState(1);
