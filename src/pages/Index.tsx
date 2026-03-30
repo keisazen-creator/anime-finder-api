@@ -198,6 +198,17 @@ const Index = () => {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
+                    {/* Remove button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFromHistory(entry.animeId);
+                        setRecentlyWatched(getRecentlyWatched());
+                      }}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all z-10"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                     {/* Progress bar */}
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
                       <div
