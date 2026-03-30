@@ -17,7 +17,7 @@ const AnimeCard = ({ anime, onClick, index }: Props) => {
       className="group relative flex flex-col text-left rounded-lg overflow-hidden bg-card border border-border transition-all duration-200 hover:border-primary/40 active:scale-[0.97] animate-fade-up focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      <div className="relative aspect-[2/3] overflow-hidden">
+      <div className="relative aspect-[3/4] overflow-hidden">
         <img
           src={anime.coverImage.large}
           alt={title}

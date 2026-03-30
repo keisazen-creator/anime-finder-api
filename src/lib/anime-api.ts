@@ -1,3 +1,5 @@
+import { cachedFetch } from "./api-cache";
+
 const TMDB_KEY = "fdc7143eae0ef3d73d0484e1fb87056c";
 const KOGEMI_API = "https://kogemi-api-3.onrender.com";
 const REQUEST_TIMEOUT = 8000;
@@ -130,64 +132,41 @@ export async function searchAnime(query: string): Promise<AnimeResult[]> {
   const cleanQuery = query.trim();
   if (!cleanQuery) return [];
 
-  try {
-    return await fetchJson<AnimeResult[]>(`${KOGEMI_API}/search?q=${encodeURIComponent(cleanQuery)}`);
-  } catch {
-    const data = await postAniList<AniListPageResponse>(
-      `
-        query ($search: String) {
-          Page(perPage: 18) {
-            media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
-              id
-              title { romaji english }
-              coverImage { large }
-              description
-              episodes
-              status
-              genres
-              averageScore
-              seasonYear
+  return cachedFetch(`search:${cleanQuery.toLowerCase()}`, async () => {
+    try {
+      return await fetchJson<AnimeResult[]>(`${KOGEMI_API}/search?q=${encodeURIComponent(cleanQuery)}`);
+    } catch {
+      const data = await postAniList<AniListPageResponse>(
+        `
+          query ($search: String) {
+            Page(perPage: 18) {
+              media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
+                id
+                title { romaji english }
+                coverImage { large }
+                description
+                episodes
+                status
+                genres
+                averageScore
+                seasonYear
+              }
             }
           }
-        }
-      `,
-      { search: cleanQuery }
-    );
-
-    return data?.data?.Page?.media || [];
-  }
+        `,
+        { search: cleanQuery }
+      );
+      return data?.data?.Page?.media || [];
+    }
+  });
 }
 
 export async function getTrendingAnime(): Promise<AnimeResult[]> {
-  const data = await postAniList<AniListPageResponse>(`
-    query {
-      Page(perPage: 18) {
-        media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
-          id
-          title { romaji english }
-          coverImage { large }
-          description
-          episodes
-          status
-          genres
-          averageScore
-          seasonYear
-          bannerImage
-        }
-      }
-    }
-  `);
-
-  return data?.data?.Page?.media || [];
-}
-
-export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
-  const isAdult = genre === "Hentai";
-  const data = await postAniList<AniListPageResponse>(
-    `
-      query ($genre: String, $isAdult: Boolean) {
+  return cachedFetch("trending", async () => {
+    const data = await postAniList<AniListPageResponse>(`
+      query {
         Page(perPage: 18) {
-          media(type: ANIME, genre: $genre, sort: POPULARITY_DESC, isAdult: $isAdult) {
+          media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
             id
             title { romaji english }
             coverImage { large }
@@ -201,11 +180,37 @@ export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
           }
         }
       }
-    `,
-    { genre, isAdult }
-  );
+    `);
+    return data?.data?.Page?.media || [];
+  });
+}
 
-  return data?.data?.Page?.media || [];
+export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
+  return cachedFetch(`genre:${genre}`, async () => {
+    const isAdult = genre === "Hentai";
+    const data = await postAniList<AniListPageResponse>(
+      `
+        query ($genre: String, $isAdult: Boolean) {
+          Page(perPage: 18) {
+            media(type: ANIME, genre: $genre, sort: POPULARITY_DESC, isAdult: $isAdult) {
+              id
+              title { romaji english }
+              coverImage { large }
+              description
+              episodes
+              status
+              genres
+              averageScore
+              seasonYear
+              bannerImage
+            }
+          }
+        }
+      `,
+      { genre, isAdult }
+    );
+    return data?.data?.Page?.media || [];
+  });
 }
 
 export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
