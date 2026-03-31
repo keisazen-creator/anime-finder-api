@@ -9,7 +9,7 @@ interface Props {
   onClearBack?: () => void;
 }
 
-const SearchBar = ({ onSearch, isSearching }: Props) => {
+const SearchBar = ({ onSearch, isSearching, onClearBack }: Props) => {
   const [value, setValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
