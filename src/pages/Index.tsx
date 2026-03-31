@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
 import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
@@ -13,7 +13,8 @@ const Index = () => {
   const [page, setPage] = useState<"home" | "history">("home");
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
-  const [selected, setSelected] = useState<AnimeResult | null>(null);
+  // Navigation stack for back functionality
+  const [navStack, setNavStack] = useState<AnimeResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [activeGenre, setActiveGenre] = useState<GenreFilter>("Trending");
@@ -22,51 +23,38 @@ const Index = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [recentlyWatched, setRecentlyWatched] = useState<WatchEntry[]>([]);
+  const [searchKey, setSearchKey] = useState(0); // to reset search bar
+
+  const selected = navStack.length > 0 ? navStack[navStack.length - 1] : null;
 
   useEffect(() => {
     let active = true;
-
     const loadTrending = async () => {
       setInitialLoading(true);
       setLoadError(null);
-
       try {
         const data = await getTrendingAnime();
         if (active) setTrending(data);
       } catch {
-        if (active) {
-          setTrending([]);
-          setLoadError("Couldn't load anime right now.");
-        }
+        if (active) { setTrending([]); setLoadError("Couldn't load anime right now."); }
       } finally {
         if (active) setInitialLoading(false);
       }
     };
-
     loadTrending();
     setRecentlyWatched(getRecentlyWatched());
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   // Refresh watch history when returning from detail
   useEffect(() => {
-    if (!selected) {
-      setRecentlyWatched(getRecentlyWatched());
-    }
+    if (!selected) setRecentlyWatched(getRecentlyWatched());
   }, [selected]);
 
-  const handleSearch = async (q: string) => {
+  const handleSearch = useCallback(async (q: string) => {
     setQuery(q);
     setLoadError(null);
-
-    if (!q) {
-      setResults([]);
-      return;
-    }
-
+    if (!q) { setResults([]); return; }
     setSearching(true);
     try {
       const data = await searchAnime(q);
@@ -77,17 +65,12 @@ const Index = () => {
     } finally {
       setSearching(false);
     }
-  };
+  }, []);
 
   const handleGenreChange = async (genre: GenreFilter) => {
     setActiveGenre(genre);
     setLoadError(null);
-
-    if (genre === "Trending") {
-      setGenreResults([]);
-      return;
-    }
-
+    if (genre === "Trending") { setGenreResults([]); return; }
     setGenreLoading(true);
     try {
       const data = await getAnimeByGenre(genre);
@@ -100,6 +83,21 @@ const Index = () => {
     }
   };
 
+  const selectAnime = (anime: AnimeResult) => {
+    setNavStack((prev) => [...prev, anime]);
+  };
+
+  const goBack = () => {
+    setNavStack((prev) => prev.slice(0, -1));
+  };
+
+  const goHome = () => {
+    setNavStack([]);
+    setQuery("");
+    setSearchKey((k) => k + 1);
+    setPage("home");
+  };
+
   const displayList = query ? results : activeGenre === "Trending" ? trending : genreResults;
   const heading = query
     ? `Results for "${query}"`
@@ -109,14 +107,14 @@ const Index = () => {
   const isLoading = searching || genreLoading || initialLoading;
 
   if (page === "history") {
-    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { setSelected(a); setPage("home"); }} />;
+    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />;
   }
 
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <AnimeDetail anime={selected} onBack={() => setSelected(null)} onSelect={(a) => setSelected(a)} />
+          <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
         </div>
       </div>
     );
@@ -127,11 +125,11 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 shrink-0">
-            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7 cursor-pointer" onClick={() => { setSelected(null); setPage("home"); }} />
+          <button onClick={goHome} className="flex items-center gap-2 shrink-0">
+            <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7" />
             <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
-          </div>
-          <SearchBar onSearch={handleSearch} isSearching={searching} />
+          </button>
+          <SearchBar key={searchKey} onSearch={handleSearch} isSearching={searching} onClearBack={query ? goHome : undefined} />
           <button
             onClick={() => setPage("history")}
             className="shrink-0 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -182,7 +180,7 @@ const Index = () => {
                 <button
                   key={entry.animeId}
                   onClick={() =>
-                    setSelected({
+                    selectAnime({
                       id: entry.animeId,
                       title: { romaji: entry.title, english: entry.title },
                       coverImage: { large: entry.coverImage },
@@ -198,7 +196,6 @@ const Index = () => {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
-                    {/* Remove button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -209,7 +206,6 @@ const Index = () => {
                     >
                       <X className="w-3 h-3" />
                     </button>
-                    {/* Progress bar */}
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
                       <div
                         className="h-full bg-primary rounded-r-full"
@@ -244,7 +240,7 @@ const Index = () => {
 
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
           {displayList.map((anime, i) => (
-            <AnimeCard key={anime.id} anime={anime} onClick={setSelected} index={i} />
+            <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
           ))}
         </div>
       </main>
