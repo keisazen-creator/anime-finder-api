@@ -6,6 +6,7 @@ import SearchHistory from "@/components/SearchHistory";
 interface Props {
   onSearch: (query: string) => void;
   isSearching: boolean;
+  onClearBack?: () => void;
 }
 
 const SearchBar = ({ onSearch, isSearching }: Props) => {
