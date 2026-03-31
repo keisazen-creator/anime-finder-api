@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
@@ -14,11 +14,6 @@ interface Props {
   onSelect?: (anime: AnimeResult) => void;
 }
 
-interface SeasonInfo {
-  totalSeasons: number;
-  episodesPerSeason: number[];
-}
-
 type ServerKey = keyof StreamServers;
 
 const SERVER_LABELS: Record<ServerKey, string> = {
@@ -29,54 +24,127 @@ const SERVER_LABELS: Record<ServerKey, string> = {
   vidsrc: "VidSrc",
 };
 
-function getSeasonInfo(title: string, apiEpisodes?: number): SeasonInfo {
-  const t = title.toLowerCase();
-  if (t.includes("one piece")) return { totalSeasons: 21, episodesPerSeason: Array(21).fill(50).map((_, i) => i === 20 ? 50 : 52) };
-  if (t.includes("naruto shippuden")) return { totalSeasons: 21, episodesPerSeason: Array(21).fill(24) };
-  if (t.includes("naruto") && !t.includes("shippuden")) return { totalSeasons: 9, episodesPerSeason: Array(9).fill(25).map((_, i) => i === 8 ? 20 : 25) };
-  if (t.includes("bleach")) return { totalSeasons: 16, episodesPerSeason: Array(16).fill(23) };
-  if (t.includes("dragon ball super")) return { totalSeasons: 5, episodesPerSeason: [14, 18, 35, 47, 17] };
-  if (t.includes("dragon ball z")) return { totalSeasons: 9, episodesPerSeason: Array(9).fill(33) };
-  if (t.includes("dragon ball")) return { totalSeasons: 1, episodesPerSeason: [153] };
-  if (t.includes("fairy tail")) return { totalSeasons: 9, episodesPerSeason: Array(9).fill(36) };
-  if (t.includes("gintama")) return { totalSeasons: 4, episodesPerSeason: [49, 51, 51, 51] };
-  if (t.includes("hunter x hunter")) return { totalSeasons: 6, episodesPerSeason: [21, 22, 24, 25, 12, 44] };
-  if (t.includes("my hero academia") || t.includes("boku no hero")) return { totalSeasons: 7, episodesPerSeason: [13, 25, 25, 25, 25, 25, 21] };
-  if (t.includes("attack on titan") || t.includes("shingeki no kyojin")) return { totalSeasons: 4, episodesPerSeason: [25, 12, 22, 28] };
-  if (t.includes("demon slayer") || t.includes("kimetsu no yaiba")) return { totalSeasons: 4, episodesPerSeason: [26, 18, 11, 14] };
-  if (t.includes("jujutsu kaisen")) return { totalSeasons: 2, episodesPerSeason: [24, 23] };
-  if (t.includes("sword art online")) return { totalSeasons: 4, episodesPerSeason: [25, 24, 24, 23] };
-  if (t.includes("black clover")) return { totalSeasons: 4, episodesPerSeason: [51, 51, 52, 16] };
-  if (t.includes("mob psycho")) return { totalSeasons: 3, episodesPerSeason: [12, 13, 12] };
-  if (t.includes("re:zero") || t.includes("re zero")) return { totalSeasons: 3, episodesPerSeason: [25, 25, 16] };
-  if (t.includes("tokyo ghoul")) return { totalSeasons: 4, episodesPerSeason: [12, 12, 12, 12] };
-  if (t.includes("haikyuu")) return { totalSeasons: 4, episodesPerSeason: [25, 25, 10, 25] };
-  if (t.includes("overlord")) return { totalSeasons: 4, episodesPerSeason: [13, 13, 13, 13] };
-  if (t.includes("konosuba")) return { totalSeasons: 3, episodesPerSeason: [10, 10, 11] };
+// ── Episode layout types ──
+// "real-seasons": short anime with distinct seasons (AOT, Demon Slayer)
+//   → Each season shows E1, E2, E3... (relative), but we send absolute to API
+// "chunked": long anime with 100+ eps (One Piece, Naruto)
+//   → No seasons, just episode range tabs: 1-100, 101-200, etc.
 
-  const eps = apiEpisodes || 24;
-  if (eps > 26) {
-    const seasons = Math.ceil(eps / 13);
-    const perSeason = Array(seasons).fill(13);
-    perSeason[seasons - 1] = eps - 13 * (seasons - 1);
-    return { totalSeasons: seasons, episodesPerSeason: perSeason };
-  }
-  return { totalSeasons: 1, episodesPerSeason: [eps] };
+interface RealSeasonLayout {
+  type: "real-seasons";
+  seasons: { label: string; episodeCount: number; absoluteStart: number }[];
 }
 
-function getAbsoluteStart(seasonInfo: SeasonInfo, season: number): number {
-  let start = 1;
-  for (let i = 0; i < season - 1; i++) {
-    start += seasonInfo.episodesPerSeason[i] || 0;
+interface ChunkedLayout {
+  type: "chunked";
+  totalEpisodes: number;
+  chunkSize: number;
+  chunks: { label: string; start: number; end: number }[];
+}
+
+type EpisodeLayout = RealSeasonLayout | ChunkedLayout;
+
+// Known multi-season anime with REAL season data
+const REAL_SEASON_DATA: Record<string, number[]> = {
+  "attack on titan": [25, 12, 22, 28],
+  "shingeki no kyojin": [25, 12, 22, 28],
+  "demon slayer": [26, 18, 11, 14],
+  "kimetsu no yaiba": [26, 18, 11, 14],
+  "jujutsu kaisen": [24, 23],
+  "my hero academia": [13, 25, 25, 25, 25, 25, 21],
+  "boku no hero": [13, 25, 25, 25, 25, 25, 21],
+  "mob psycho": [12, 13, 12],
+  "re:zero": [25, 25, 16],
+  "re zero": [25, 25, 16],
+  "tokyo ghoul": [12, 12, 12, 12],
+  "haikyuu": [25, 25, 10, 25],
+  "overlord": [13, 13, 13, 13],
+  "konosuba": [10, 10, 11],
+  "sword art online": [25, 24, 24, 23],
+  "hunter x hunter": [21, 22, 24, 25, 12, 44],
+  "dragon ball super": [14, 18, 35, 47, 17],
+};
+
+// Known long-running anime (chunked episodes, no real seasons)
+const LONG_ANIME_EPISODES: Record<string, number> = {
+  "one piece": 1200,
+  "naruto shippuden": 500,
+  "naruto": 220,
+  "bleach": 366,
+  "dragon ball z": 291,
+  "dragon ball": 153,
+  "fairy tail": 328,
+  "gintama": 367,
+  "black clover": 170,
+  "detective conan": 1150,
+  "case closed": 1150,
+};
+
+function getEpisodeLayout(title: string, apiEpisodes?: number): EpisodeLayout {
+  const t = title.toLowerCase();
+
+  // Check for real seasons first (short-to-medium anime)
+  for (const [key, seasons] of Object.entries(REAL_SEASON_DATA)) {
+    if (t.includes(key)) {
+      let absStart = 1;
+      const seasonList = seasons.map((count, i) => {
+        const s = { label: `Season ${i + 1}`, episodeCount: count, absoluteStart: absStart };
+        absStart += count;
+        return s;
+      });
+      return { type: "real-seasons", seasons: seasonList };
+    }
   }
-  return start;
+
+  // Check for known long anime
+  for (const [key, totalEps] of Object.entries(LONG_ANIME_EPISODES)) {
+    if (t.includes(key)) {
+      const chunkSize = 100;
+      const chunks: ChunkedLayout["chunks"] = [];
+      for (let i = 0; i < totalEps; i += chunkSize) {
+        const end = Math.min(i + chunkSize, totalEps);
+        chunks.push({ label: `${i + 1}–${end}`, start: i + 1, end });
+      }
+      return { type: "chunked", totalEpisodes: totalEps, chunkSize, chunks };
+    }
+  }
+
+  // Generic: if API says many episodes → chunked; otherwise single season
+  const eps = apiEpisodes || 24;
+  if (eps > 50) {
+    const chunkSize = 100;
+    const chunks: ChunkedLayout["chunks"] = [];
+    for (let i = 0; i < eps; i += chunkSize) {
+      const end = Math.min(i + chunkSize, eps);
+      chunks.push({ label: `${i + 1}–${end}`, start: i + 1, end });
+    }
+    return { type: "chunked", totalEpisodes: eps, chunkSize, chunks };
+  }
+
+  if (eps > 13) {
+    // 2-season split
+    const s1 = Math.ceil(eps / 2);
+    const s2 = eps - s1;
+    return {
+      type: "real-seasons",
+      seasons: [
+        { label: "Season 1", episodeCount: s1, absoluteStart: 1 },
+        { label: "Season 2", episodeCount: s2, absoluteStart: s1 + 1 },
+      ],
+    };
+  }
+
+  return {
+    type: "real-seasons",
+    seasons: [{ label: "Season 1", episodeCount: eps, absoluteStart: 1 }],
+  };
 }
 
 const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [loading, setLoading] = useState(false);
   const [streamUrls, setStreamUrls] = useState<StreamServers | null>(null);
-  const [episode, setEpisode] = useState(1);
-  const [season, setSeason] = useState(1);
+  const [currentEp, setCurrentEp] = useState(1); // always absolute
+  const [selectedIndex, setSelectedIndex] = useState(0); // season index or chunk index
   const [server, setServer] = useState<ServerKey>("megaplayAni");
   const [lang, setLang] = useState<StreamLang>("sub");
   const [error, setError] = useState<string | null>(null);
@@ -86,33 +154,77 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
-  const seasonInfo = getSeasonInfo(title, anime.episodes);
-  const seasonEpCount = seasonInfo.episodesPerSeason[season - 1] || 12;
-  const absStart = getAbsoluteStart(seasonInfo, season);
+  const layout = useMemo(() => getEpisodeLayout(title, anime.episodes), [title, anime.episodes]);
 
+  // Computed values based on layout
+  const { rangeStart, rangeEnd, totalEps, displayEpisodes } = useMemo(() => {
+    if (layout.type === "real-seasons") {
+      const s = layout.seasons[selectedIndex] || layout.seasons[0];
+      return {
+        rangeStart: s.absoluteStart,
+        rangeEnd: s.absoluteStart + s.episodeCount - 1,
+        totalEps: layout.seasons.reduce((a, b) => a + b.episodeCount, 0),
+        // For real seasons, display relative episode numbers (1, 2, 3...)
+        displayEpisodes: Array.from({ length: s.episodeCount }, (_, i) => ({
+          absolute: s.absoluteStart + i,
+          display: i + 1,
+        })),
+      };
+    } else {
+      const chunk = layout.chunks[selectedIndex] || layout.chunks[0];
+      return {
+        rangeStart: chunk.start,
+        rangeEnd: chunk.end,
+        totalEps: layout.totalEpisodes,
+        // For chunked, display absolute numbers (101, 102, 103...)
+        displayEpisodes: Array.from({ length: chunk.end - chunk.start + 1 }, (_, i) => ({
+          absolute: chunk.start + i,
+          display: chunk.start + i,
+        })),
+      };
+    }
+  }, [layout, selectedIndex]);
+
+  // Restore saved progress
   useEffect(() => {
     const progress = getWatchProgress(anime.id);
     if (progress) {
-      setSeason(progress.season);
-      setEpisode(progress.episode);
+      setCurrentEp(progress.episode);
+      // Find the correct index for this episode
+      if (layout.type === "real-seasons") {
+        const idx = layout.seasons.findIndex(
+          (s) => progress.episode >= s.absoluteStart && progress.episode < s.absoluteStart + s.episodeCount
+        );
+        if (idx >= 0) setSelectedIndex(idx);
+      } else {
+        const idx = layout.chunks.findIndex(
+          (c) => progress.episode >= c.start && progress.episode <= c.end
+        );
+        if (idx >= 0) setSelectedIndex(idx);
+      }
     }
-  }, [anime.id]);
+  }, [anime.id, layout]);
 
-  const buildStream = useCallback((absEp: number, s: number, currentLang: StreamLang, currentImdb: string | null) => {
-    const targetAbsStart = getAbsoluteStart(seasonInfo, s);
-    const relativeEp = absEp - targetAbsStart + 1;
-    return getStreamUrls(
-      anime.id,
-      null,
-      absEp,
-      currentLang,
-      currentImdb ?? undefined,
-      s,
-      relativeEp
-    );
-  }, [anime.id, seasonInfo]);
+  const buildStream = useCallback(
+    (absEp: number, currentLang: StreamLang, currentImdb: string | null) => {
+      // For API calls, we always use absolute episode
+      // Season is determined by which season/chunk this episode falls in
+      let apiSeason = 1;
+      let relativeEp = absEp;
+      if (layout.type === "real-seasons") {
+        const sIdx = layout.seasons.findIndex(
+          (s) => absEp >= s.absoluteStart && absEp < s.absoluteStart + s.episodeCount
+        );
+        if (sIdx >= 0) {
+          apiSeason = sIdx + 1;
+          relativeEp = absEp - layout.seasons[sIdx].absoluteStart + 1;
+        }
+      }
+      return getStreamUrls(anime.id, null, absEp, currentLang, currentImdb ?? undefined, apiSeason, relativeEp);
+    },
+    [anime.id, layout]
+  );
 
-  // Fetch IMDB in background (only needed for vidfast/vidsrc fallback)
   useEffect(() => {
     let active = true;
     if (!imdbId) {
@@ -123,67 +235,109 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     return () => { active = false; };
   }, [title, imdbId]);
 
-  const handleWatch = useCallback((absEp: number, s?: number) => {
-    const targetSeason = s ?? season;
-    setError(null);
-    setEpisode(absEp);
+  const handleWatch = useCallback(
+    (absEp: number) => {
+      setError(null);
+      setCurrentEp(absEp);
 
-    saveWatchProgress({
-      animeId: anime.id,
-      title,
-      coverImage: anime.coverImage.large,
-      season: targetSeason,
-      episode: absEp,
-      totalEpisodes: seasonInfo.episodesPerSeason.reduce((a, b) => a + b, 0),
-      updatedAt: Date.now(),
-    });
-    if (s !== undefined) setSeason(s);
+      // Find season index for save
+      let saveSeason = 1;
+      if (layout.type === "real-seasons") {
+        const idx = layout.seasons.findIndex(
+          (s) => absEp >= s.absoluteStart && absEp < s.absoluteStart + s.episodeCount
+        );
+        if (idx >= 0) saveSeason = idx + 1;
+      }
 
-    setStreamUrls(buildStream(absEp, targetSeason, lang, imdbId));
-    setPlayerOpen(true);
-  }, [imdbId, title, season, seasonInfo, lang, buildStream, anime]);
+      saveWatchProgress({
+        animeId: anime.id,
+        title,
+        coverImage: anime.coverImage.large,
+        season: saveSeason,
+        episode: absEp,
+        totalEpisodes: totalEps,
+        updatedAt: Date.now(),
+      });
 
-  const changeSeason = (val: string) => {
-    const s = parseInt(val);
-    setSeason(s);
-    const newStart = getAbsoluteStart(seasonInfo, s);
-    setEpisode(newStart);
-    if (playerOpen && streamUrls) {
-      setStreamUrls(buildStream(newStart, s, lang, imdbId));
+      setStreamUrls(buildStream(absEp, lang, imdbId));
+      setPlayerOpen(true);
+    },
+    [imdbId, title, totalEps, lang, buildStream, anime, layout]
+  );
+
+  const changeIndex = (val: string) => {
+    const idx = parseInt(val);
+    setSelectedIndex(idx);
+    // Set episode to start of new range
+    if (layout.type === "real-seasons") {
+      setCurrentEp(layout.seasons[idx].absoluteStart);
+    } else {
+      setCurrentEp(layout.chunks[idx].start);
     }
   };
 
   const toggleLang = (newLang: StreamLang) => {
     setLang(newLang);
     if (playerOpen) {
-      setStreamUrls(buildStream(episode, season, newLang, imdbId));
+      setStreamUrls(buildStream(currentEp, newLang, imdbId));
     }
   };
 
-  const absEnd = absStart + seasonEpCount - 1;
-  const prevEp = () => { if (episode > absStart) handleWatch(episode - 1); };
-  const nextEp = () => { if (episode < absEnd) handleWatch(episode + 1); };
+  const prevEp = () => { if (currentEp > rangeStart) handleWatch(currentEp - 1); };
+  const nextEp = () => { if (currentEp < rangeEnd) handleWatch(currentEp + 1); };
   const closePlayer = () => { setPlayerOpen(false); setStreamUrls(null); };
 
   const description = anime.description?.replace(/<[^>]*>/g, "") || "";
   const currentUrl = streamUrls ? streamUrls[server] : "";
 
-  // Fullscreen player overlay
+  // Selector options
+  const selectorOptions = layout.type === "real-seasons"
+    ? layout.seasons.map((s, i) => ({ value: String(i), label: `${s.label} (${s.episodeCount} eps)` }))
+    : layout.chunks.map((c, i) => ({ value: String(i), label: `Episodes ${c.label}` }));
+
+  const selectorLabel = layout.type === "real-seasons"
+    ? layout.seasons[selectedIndex]?.label || "Season 1"
+    : `Ep ${layout.chunks[selectedIndex]?.label || "1–100"}`;
+
+  const headerLabel = layout.type === "real-seasons"
+    ? `${layout.seasons[selectedIndex]?.label} · Episodes 1–${layout.seasons[selectedIndex]?.episodeCount}`
+    : `Episodes ${layout.chunks[selectedIndex]?.start}–${layout.chunks[selectedIndex]?.end}`;
+
+  const showSelector = selectorOptions.length > 1;
+
+  // Player status label
+  const playerEpLabel = (() => {
+    if (layout.type === "real-seasons") {
+      const sIdx = layout.seasons.findIndex(
+        (s) => currentEp >= s.absoluteStart && currentEp < s.absoluteStart + s.episodeCount
+      );
+      if (sIdx >= 0) {
+        const rel = currentEp - layout.seasons[sIdx].absoluteStart + 1;
+        return `S${sIdx + 1} · E${rel}`;
+      }
+    }
+    return `E${currentEp}`;
+  })();
+
+  // Stats label
+  const statsLabel = layout.type === "real-seasons"
+    ? `${layout.seasons.length} season${layout.seasons.length > 1 ? "s" : ""}`
+    : `${totalEps} eps`;
+
+  // ── Fullscreen player overlay ──
   if (playerOpen && streamUrls) {
     return (
       <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-up">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0">
           <Button variant="destructive" size="sm" onClick={closePlayer} className="gap-1.5 h-8 text-xs">
             <X className="w-3.5 h-3.5" /> Close
           </Button>
           <span className="text-xs font-medium text-foreground">
-            S{season} · E{episode} · {lang.toUpperCase()}
+            {playerEpLabel} · {lang.toUpperCase()}
           </span>
           <div className="w-16" />
         </div>
 
-        {/* Player */}
         <div className="flex-1 min-h-0 bg-black">
           <iframe
             key={currentUrl}
@@ -191,13 +345,11 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             className="w-full h-full border-none"
             allowFullScreen
             allow="autoplay; fullscreen"
-            title={`${title} - S${season}E${episode}`}
+            title={`${title} - ${playerEpLabel}`}
           />
         </div>
 
-        {/* Server + Controls */}
         <div className="bg-card border-t border-border shrink-0">
-          {/* Server buttons */}
           <div className="flex gap-1.5 px-3 py-2 overflow-x-auto">
             {(Object.keys(SERVER_LABELS) as ServerKey[]).map((key) => (
               <button
@@ -214,9 +366,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             ))}
           </div>
 
-          {/* Sub/Dub + Nav */}
           <div className="flex items-center gap-2 px-3 py-2 border-t border-border flex-wrap">
-            {/* Sub/Dub toggle */}
             <div className="flex bg-secondary rounded-md overflow-hidden">
               <button
                 onClick={() => toggleLang("sub")}
@@ -236,45 +386,44 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            {seasonInfo.totalSeasons > 1 && (
-              <Select value={String(season)} onValueChange={changeSeason}>
-                <SelectTrigger className="w-[100px] h-8 text-[11px]">
+            {showSelector && (
+              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
+                <SelectTrigger className="w-auto max-w-[140px] h-8 text-[11px]">
                   <Layers className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: seasonInfo.totalSeasons }, (_, i) => (
-                    <SelectItem key={i + 1} value={String(i + 1)}>S{i + 1}</SelectItem>
+                  {selectorOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
 
             <div className="flex gap-1.5 ml-auto">
-              <Button variant="secondary" size="sm" onClick={prevEp} disabled={episode <= absStart} className="gap-1 h-8 text-xs">
+              <Button variant="secondary" size="sm" onClick={prevEp} disabled={currentEp <= rangeStart} className="gap-1 h-8 text-xs">
                 <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </Button>
-              <Button variant="secondary" size="sm" onClick={nextEp} disabled={episode >= absEnd} className="gap-1 h-8 text-xs">
+              <Button variant="secondary" size="sm" onClick={nextEp} disabled={currentEp >= rangeEnd} className="gap-1 h-8 text-xs">
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Episode grid */}
         <div className="max-h-[30vh] overflow-y-auto bg-card border-t border-border p-2.5 shrink-0">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-1.5">
-            {Array.from({ length: seasonEpCount }, (_, i) => absStart + i).map((ep) => (
+            {displayEpisodes.map((ep) => (
               <button
-                key={ep}
-                onClick={() => handleWatch(ep)}
+                key={ep.absolute}
+                onClick={() => handleWatch(ep.absolute)}
                 className={`h-8 rounded-md text-[11px] font-medium transition-colors ${
-                  ep === episode
+                  ep.absolute === currentEp
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
-                {ep}
+                {ep.display}
               </button>
             ))}
           </div>
@@ -283,7 +432,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     );
   }
 
-  // Detail view
+  // ── Detail view ──
   return (
     <div className="animate-fade-up">
       <button
@@ -291,16 +440,12 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded active:scale-95"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to browse
+        Back
       </button>
 
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-64 shrink-0">
-          <img
-            src={anime.coverImage.large}
-            alt={title}
-            className="w-full rounded-lg shadow-[0_8px_32px_hsl(var(--primary)/0.12)]"
-          />
+          <img src={anime.coverImage.large} alt={title} className="w-full rounded-lg shadow-[0_8px_32px_hsl(var(--primary)/0.12)]" />
         </div>
 
         <div className="flex-1 space-y-4">
@@ -329,9 +474,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             {anime.seasonYear && (
               <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">{anime.seasonYear}</span>
             )}
-            <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
-              {seasonInfo.totalSeasons > 1 ? `${seasonInfo.totalSeasons} seasons` : `${seasonEpCount} eps`}
-            </span>
+            <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">{statsLabel}</span>
             {anime.status && (
               <span className="bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground capitalize">
                 {anime.status.toLowerCase().replace("_", " ")}
@@ -355,7 +498,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
           )}
 
-          {/* Sub/Dub + Season + Play */}
+          {/* Controls */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex bg-secondary rounded-md overflow-hidden">
               <button
@@ -376,51 +519,51 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            {seasonInfo.totalSeasons > 1 && (
-              <Select value={String(season)} onValueChange={changeSeason}>
-                <SelectTrigger className="w-[140px] h-10">
+            {showSelector && (
+              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
+                <SelectTrigger className="w-[180px] h-10">
                   <Layers className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: seasonInfo.totalSeasons }, (_, i) => (
-                    <SelectItem key={i + 1} value={String(i + 1)}>
-                      Season {i + 1} ({seasonInfo.episodesPerSeason[i]} eps)
-                    </SelectItem>
+                  {selectorOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={() => handleWatch(absStart)} disabled={loading} className="gap-2">
+
+            <Button onClick={() => handleWatch(rangeStart)} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Watch E{absStart}
+              Watch
             </Button>
           </div>
 
           {/* Episode grid */}
           <div>
-            <p className="text-sm font-medium text-foreground mb-3">
-              Season {season} · Episodes {absStart}–{absEnd}
-            </p>
+            <p className="text-sm font-medium text-foreground mb-3">{headerLabel}</p>
             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
-              {Array.from({ length: seasonEpCount }, (_, i) => absStart + i).map((ep) => (
+              {displayEpisodes.map((ep) => (
                 <Button
-                  key={ep}
+                  key={ep.absolute}
                   variant="secondary"
                   size="sm"
-                  onClick={() => handleWatch(ep)}
+                  onClick={() => handleWatch(ep.absolute)}
                   disabled={loading}
-                  className="w-12 h-9 text-xs font-medium"
+                  className={`w-12 h-9 text-xs font-medium ${
+                    ep.absolute === currentEp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                  }`}
                 >
-                  {loading && ep === episode ? (
+                  {loading && ep.absolute === currentEp ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
-                    ep
+                    ep.display
                   )}
                 </Button>
               ))}
             </div>
           </div>
+
           {onSelect && <AnimeRecommendations anime={anime} onSelect={onSelect} />}
         </div>
       </div>
