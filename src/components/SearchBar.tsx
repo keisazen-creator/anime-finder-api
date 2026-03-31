@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ArrowLeft } from "lucide-react";
 import { addSearchQuery } from "@/lib/search-history";
 import SearchHistory from "@/components/SearchHistory";
 
