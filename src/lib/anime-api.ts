@@ -2,7 +2,7 @@ import { cachedFetch } from "./api-cache";
 
 const TMDB_KEY = "fdc7143eae0ef3d73d0484e1fb87056c";
 const KOGEMI_API = "https://kogemi-api-3.onrender.com";
-const REQUEST_TIMEOUT = 8000;
+const REQUEST_TIMEOUT = 10000;
 
 export interface AnimeResult {
   id: number;

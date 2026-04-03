@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
 import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
-import AnimeDetail from "@/components/AnimeDetail";
-import HistoryPage from "@/pages/History";
+import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
 import SearchBar from "@/components/SearchBar";
 import { Flame, History, ChevronRight, BookOpen, X } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
+
+const AnimeDetail = lazy(() => import("@/components/AnimeDetail"));
+const HistoryPage = lazy(() => import("@/pages/History"));
 
 const Index = () => {
   const [page, setPage] = useState<"home" | "history">("home");
@@ -107,14 +109,20 @@ const Index = () => {
   const isLoading = searching || genreLoading || initialLoading;
 
   if (page === "history") {
-    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
+      </Suspense>
+    );
   }
 
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
+          </Suspense>
         </div>
       </div>
     );
@@ -232,17 +240,19 @@ const Index = () => {
           <h2 className="text-lg font-display font-semibold text-foreground">{heading}</h2>
         </div>
 
-        {displayList.length === 0 && !isLoading && (
+        {isLoading && displayList.length === 0 ? (
+          <AnimeGridSkeleton count={18} />
+        ) : displayList.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-16">
             {query ? "No anime found. Try a different search." : loadError || "No anime available right now."}
           </p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+            {displayList.map((anime, i) => (
+              <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
+            ))}
+          </div>
         )}
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-          {displayList.map((anime, i) => (
-            <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
-          ))}
-        </div>
       </main>
     </div>
   );
