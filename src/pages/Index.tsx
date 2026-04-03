@@ -13,7 +13,8 @@ const HistoryPage = lazy(() => import("@/pages/History"));
 const SchedulePage = lazy(() => import("@/pages/Schedule"));
 
 const Index = () => {
-  const [page, setPage] = useState<"home" | "history">("home");
+  const [page, setPage] = useState<"home" | "history" | "schedule">("home");
+  const [randomLoading, setRandomLoading] = useState(false);
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
   // Navigation stack for back functionality
