@@ -102,6 +102,15 @@ const Index = () => {
     setPage("home");
   };
 
+  const handleRandom = async () => {
+    setRandomLoading(true);
+    try {
+      const anime = await getRandomAnime();
+      if (anime) selectAnime(anime);
+    } catch {}
+    setRandomLoading(false);
+  };
+
   const displayList = query ? results : activeGenre === "Trending" ? trending : genreResults;
   const heading = query
     ? `Results for "${query}"`
