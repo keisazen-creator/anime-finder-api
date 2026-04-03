@@ -127,6 +127,14 @@ const Index = () => {
     );
   }
 
+  if (page === "schedule") {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <SchedulePage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
+      </Suspense>
+    );
+  }
+
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
