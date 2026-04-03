@@ -240,17 +240,19 @@ const Index = () => {
           <h2 className="text-lg font-display font-semibold text-foreground">{heading}</h2>
         </div>
 
-        {displayList.length === 0 && !isLoading && (
+        {isLoading && displayList.length === 0 ? (
+          <AnimeGridSkeleton count={18} />
+        ) : displayList.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-16">
             {query ? "No anime found. Try a different search." : loadError || "No anime available right now."}
           </p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+            {displayList.map((anime, i) => (
+              <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
+            ))}
+          </div>
         )}
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-          {displayList.map((anime, i) => (
-            <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
-          ))}
-        </div>
       </main>
     </div>
   );
