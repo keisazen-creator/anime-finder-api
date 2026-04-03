@@ -566,6 +566,8 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             </div>
           </div>
 
+          <SeasonNavigator anime={anime} onSelect={onSelect!} />
+          <DownloadLinks title={title} episode={currentEp} anilistId={anime.id} />
           {onSelect && <AnimeRecommendations anime={anime} onSelect={onSelect} />}
         </div>
       </div>
