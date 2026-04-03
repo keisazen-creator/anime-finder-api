@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
+import { searchAnime, getTrendingAnime, getAnimeByGenre, getRandomAnime, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
 import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight, BookOpen, X } from "lucide-react";
+import { Flame, History, ChevronRight, BookOpen, X, Calendar, Shuffle, Loader2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const AnimeDetail = lazy(() => import("@/components/AnimeDetail"));
 const HistoryPage = lazy(() => import("@/pages/History"));
+const SchedulePage = lazy(() => import("@/pages/Schedule"));
 
 const Index = () => {
   const [page, setPage] = useState<"home" | "history">("home");
