@@ -237,6 +237,30 @@ export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
   return data?.data?.Media || null;
 }
 
+export async function getRandomAnime(): Promise<AnimeResult | null> {
+  const page = Math.floor(Math.random() * 50) + 1;
+  const data = await postAniList<AniListPageResponse>(`
+    query ($page: Int) {
+      Page(page: $page, perPage: 1) {
+        media(type: ANIME, sort: POPULARITY_DESC, status_in: [FINISHED, RELEASING]) {
+          id
+          title { romaji english }
+          coverImage { large }
+          description
+          episodes
+          status
+          genres
+          averageScore
+          seasonYear
+          bannerImage
+        }
+      }
+    }
+  `, { page });
+  const media = data?.data?.Page?.media;
+  return media && media.length > 0 ? media[0] : null;
+}
+
 export interface ImdbResult {
   imdb: string;
   tmdb: number;

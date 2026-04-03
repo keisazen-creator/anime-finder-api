@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { searchAnime, getTrendingAnime, getAnimeByGenre, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
+import { searchAnime, getTrendingAnime, getAnimeByGenre, getRandomAnime, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
 import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight, BookOpen, X } from "lucide-react";
+import { Flame, History, ChevronRight, BookOpen, X, Calendar, Shuffle, Loader2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const AnimeDetail = lazy(() => import("@/components/AnimeDetail"));
 const HistoryPage = lazy(() => import("@/pages/History"));
+const SchedulePage = lazy(() => import("@/pages/Schedule"));
 
 const Index = () => {
-  const [page, setPage] = useState<"home" | "history">("home");
+  const [page, setPage] = useState<"home" | "history" | "schedule">("home");
+  const [randomLoading, setRandomLoading] = useState(false);
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
   // Navigation stack for back functionality
@@ -100,6 +102,15 @@ const Index = () => {
     setPage("home");
   };
 
+  const handleRandom = async () => {
+    setRandomLoading(true);
+    try {
+      const anime = await getRandomAnime();
+      if (anime) selectAnime(anime);
+    } catch {}
+    setRandomLoading(false);
+  };
+
   const displayList = query ? results : activeGenre === "Trending" ? trending : genreResults;
   const heading = query
     ? `Results for "${query}"`
@@ -112,6 +123,14 @@ const Index = () => {
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
+      </Suspense>
+    );
+  }
+
+  if (page === "schedule") {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <SchedulePage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
       </Suspense>
     );
   }
@@ -138,13 +157,30 @@ const Index = () => {
             <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
           </button>
           <SearchBar key={searchKey} onSearch={handleSearch} isSearching={searching} onClearBack={query ? goHome : undefined} />
-          <button
-            onClick={() => setPage("history")}
-            className="shrink-0 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title="Watch History & Favorites"
-          >
-            <BookOpen className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={handleRandom}
+              disabled={randomLoading}
+              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Random Anime"
+            >
+              {randomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shuffle className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={() => setPage("schedule")}
+              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Airing Schedule"
+            >
+              <Calendar className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setPage("history")}
+              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Watch History & Favorites"
+            >
+              <BookOpen className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 

@@ -4,6 +4,8 @@ import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import AnimeRecommendations from "@/components/AnimeRecommendations";
+import SeasonNavigator from "@/components/SeasonNavigator";
+import DownloadLinks from "@/components/DownloadLinks";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic, Heart } from "lucide-react";
@@ -564,6 +566,8 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             </div>
           </div>
 
+          <SeasonNavigator anime={anime} onSelect={onSelect!} />
+          <DownloadLinks title={title} episode={currentEp} anilistId={anime.id} />
           {onSelect && <AnimeRecommendations anime={anime} onSelect={onSelect} />}
         </div>
       </div>
