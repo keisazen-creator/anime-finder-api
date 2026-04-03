@@ -109,14 +109,20 @@ const Index = () => {
   const isLoading = searching || genreLoading || initialLoading;
 
   if (page === "history") {
-    return <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
+      </Suspense>
+    );
   }
 
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
+          </Suspense>
         </div>
       </div>
     );
