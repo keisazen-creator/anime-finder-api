@@ -208,7 +208,7 @@ const Index = () => {
               {randomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shuffle className="w-5 h-5" />}
             </button>
             <button
-              onClick={() => setPage("schedule")}
+              onClick={() => { setPage("schedule"); window.history.pushState({ page: "schedule" }, ""); }}
               className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               title="Airing Schedule"
             >
