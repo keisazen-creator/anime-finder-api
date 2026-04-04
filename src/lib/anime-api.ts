@@ -259,10 +259,12 @@ export async function getRandomAnime(): Promise<AnimeResult | null> {
           description
           episodes
           status
+          format
           genres
           averageScore
           seasonYear
           bannerImage
+          nextAiringEpisode { episode timeUntilAiring }
         }
       }
     }
