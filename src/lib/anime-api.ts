@@ -11,10 +11,12 @@ export interface AnimeResult {
   description?: string;
   episodes?: number;
   status?: string;
+  format?: string;
   genres?: string[];
   averageScore?: number;
   seasonYear?: number;
   bannerImage?: string;
+  nextAiringEpisode?: { episode: number; timeUntilAiring: number } | null;
 }
 
 export const GENRE_LIST = [
@@ -147,9 +149,11 @@ export async function searchAnime(query: string): Promise<AnimeResult[]> {
                 description
                 episodes
                 status
+                format
                 genres
                 averageScore
                 seasonYear
+                nextAiringEpisode { episode timeUntilAiring }
               }
             }
           }
@@ -173,10 +177,12 @@ export async function getTrendingAnime(): Promise<AnimeResult[]> {
             description
             episodes
             status
+            format
             genres
             averageScore
             seasonYear
             bannerImage
+            nextAiringEpisode { episode timeUntilAiring }
           }
         }
       }
@@ -199,10 +205,12 @@ export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
               description
               episodes
               status
+              format
               genres
               averageScore
               seasonYear
               bannerImage
+              nextAiringEpisode { episode timeUntilAiring }
             }
           }
         }
@@ -224,10 +232,12 @@ export async function getAnimeDetails(id: number): Promise<AnimeResult | null> {
           description
           episodes
           status
+          format
           genres
           averageScore
           seasonYear
           bannerImage
+          nextAiringEpisode { episode timeUntilAiring }
         }
       }
     `,
@@ -249,10 +259,12 @@ export async function getRandomAnime(): Promise<AnimeResult | null> {
           description
           episodes
           status
+          format
           genres
           averageScore
           seasonYear
           bannerImage
+          nextAiringEpisode { episode timeUntilAiring }
         }
       }
     }
