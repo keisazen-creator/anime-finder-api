@@ -7,8 +7,7 @@ import AnimeRecommendations from "@/components/AnimeRecommendations";
 import SeasonNavigator from "@/components/SeasonNavigator";
 import DownloadLinks from "@/components/DownloadLinks";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic, Heart } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
