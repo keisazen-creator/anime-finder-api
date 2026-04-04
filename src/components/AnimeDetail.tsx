@@ -266,6 +266,20 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     [imdbId, title, totalEps, lang, buildStream, anime, layout]
   );
 
+  const toggleLang = (newLang: StreamLang) => {
+    setLang(newLang);
+    if (playerOpen) {
+      setStreamUrls(buildStream(currentEp, newLang, imdbId));
+    }
+  };
+
+  const prevEp = () => { if (currentEp > rangeStart) handleWatch(currentEp - 1); };
+  const nextEp = () => { if (currentEp < rangeEnd) handleWatch(currentEp + 1); };
+  const closePlayer = () => { setPlayerOpen(false); setStreamUrls(null); };
+
+  const description = anime.description?.replace(/<[^>]*>/g, "") || "";
+  const currentUrl = streamUrls ? streamUrls[server] : "";
+
   const headerLabel = layout.type === "real-seasons"
     ? `${layout.seasons[selectedIndex]?.label} · Episodes 1–${layout.seasons[selectedIndex]?.episodeCount}`
     : `Episodes ${layout.chunks[selectedIndex]?.start}–${layout.chunks[selectedIndex]?.end}`;
