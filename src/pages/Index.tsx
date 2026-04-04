@@ -215,7 +215,7 @@ const Index = () => {
               <Calendar className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setPage("history")}
+              onClick={() => { setPage("history"); window.history.pushState({ page: "history" }, ""); }}
               className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               title="Watch History & Favorites"
             >
