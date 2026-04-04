@@ -266,45 +266,9 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     [imdbId, title, totalEps, lang, buildStream, anime, layout]
   );
 
-  const changeIndex = (val: string) => {
-    const idx = parseInt(val);
-    setSelectedIndex(idx);
-    // Set episode to start of new range
-    if (layout.type === "real-seasons") {
-      setCurrentEp(layout.seasons[idx].absoluteStart);
-    } else {
-      setCurrentEp(layout.chunks[idx].start);
-    }
-  };
-
-  const toggleLang = (newLang: StreamLang) => {
-    setLang(newLang);
-    if (playerOpen) {
-      setStreamUrls(buildStream(currentEp, newLang, imdbId));
-    }
-  };
-
-  const prevEp = () => { if (currentEp > rangeStart) handleWatch(currentEp - 1); };
-  const nextEp = () => { if (currentEp < rangeEnd) handleWatch(currentEp + 1); };
-  const closePlayer = () => { setPlayerOpen(false); setStreamUrls(null); };
-
-  const description = anime.description?.replace(/<[^>]*>/g, "") || "";
-  const currentUrl = streamUrls ? streamUrls[server] : "";
-
-  // Selector options
-  const selectorOptions = layout.type === "real-seasons"
-    ? layout.seasons.map((s, i) => ({ value: String(i), label: `${s.label} (${s.episodeCount} eps)` }))
-    : layout.chunks.map((c, i) => ({ value: String(i), label: `Episodes ${c.label}` }));
-
-  const selectorLabel = layout.type === "real-seasons"
-    ? layout.seasons[selectedIndex]?.label || "Season 1"
-    : `Ep ${layout.chunks[selectedIndex]?.label || "1–100"}`;
-
   const headerLabel = layout.type === "real-seasons"
     ? `${layout.seasons[selectedIndex]?.label} · Episodes 1–${layout.seasons[selectedIndex]?.episodeCount}`
     : `Episodes ${layout.chunks[selectedIndex]?.start}–${layout.chunks[selectedIndex]?.end}`;
-
-  const showSelector = selectorOptions.length > 1;
 
   // Player status label
   const playerEpLabel = (() => {
