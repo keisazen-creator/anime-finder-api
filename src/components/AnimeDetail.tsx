@@ -388,19 +388,6 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            {showSelector && (
-              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
-                <SelectTrigger className="w-auto max-w-[140px] h-8 text-[11px]">
-                  <Layers className="w-3 h-3 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectorOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
 
             <div className="flex gap-1.5 ml-auto">
               <Button variant="secondary" size="sm" onClick={prevEp} disabled={currentEp <= rangeStart} className="gap-1 h-8 text-xs">
