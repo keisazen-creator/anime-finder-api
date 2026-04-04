@@ -149,9 +149,11 @@ export async function searchAnime(query: string): Promise<AnimeResult[]> {
                 description
                 episodes
                 status
+                format
                 genres
                 averageScore
                 seasonYear
+                nextAiringEpisode { episode timeUntilAiring }
               }
             }
           }
