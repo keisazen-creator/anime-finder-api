@@ -510,30 +510,62 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
             </Button>
           </div>
 
-          {/* Episode grid */}
-          <div>
-            <p className="text-sm font-medium text-foreground mb-3">{headerLabel}</p>
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
-              {displayEpisodes.map((ep) => (
-                <Button
-                  key={ep.absolute}
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleWatch(ep.absolute)}
-                  disabled={loading}
-                  className={`w-12 h-9 text-xs font-medium ${
-                    ep.absolute === currentEp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-                  }`}
-                >
-                  {loading && ep.absolute === currentEp ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    ep.display
-                  )}
-                </Button>
-              ))}
+          {/* Episode grid with range selector */}
+          {!isMovie ? (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                {(layout.type === "chunked" ? layout.chunks.length > 1 : layout.seasons.length > 1) && (
+                  <Select
+                    value={String(selectedIndex)}
+                    onValueChange={(v) => setSelectedIndex(Number(v))}
+                  >
+                    <SelectTrigger className="w-auto min-w-[140px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {layout.type === "chunked"
+                        ? layout.chunks.map((chunk, i) => (
+                            <SelectItem key={i} value={String(i)} className="text-xs">
+                              Episodes {chunk.label}
+                            </SelectItem>
+                          ))
+                        : layout.seasons.map((s, i) => (
+                            <SelectItem key={i} value={String(i)} className="text-xs">
+                              {s.label} ({s.episodeCount} eps)
+                            </SelectItem>
+                          ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">{headerLabel}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
+                {displayEpisodes.map((ep) => (
+                  <Button
+                    key={ep.absolute}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleWatch(ep.absolute)}
+                    disabled={loading}
+                    className={`w-12 h-9 text-xs font-medium ${
+                      ep.absolute === currentEp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                    }`}
+                  >
+                    {loading && ep.absolute === currentEp ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      ep.display
+                    )}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <Button onClick={() => handleWatch(1)} disabled={loading} className="gap-2">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Watch Movie
+            </Button>
+          )}
 
           <SeasonNavigator anime={anime} onSelect={onSelect!} />
           <DownloadLinks title={title} episode={currentEp} anilistId={anime.id} />
