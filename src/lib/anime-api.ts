@@ -11,10 +11,12 @@ export interface AnimeResult {
   description?: string;
   episodes?: number;
   status?: string;
+  format?: string;
   genres?: string[];
   averageScore?: number;
   seasonYear?: number;
   bannerImage?: string;
+  nextAiringEpisode?: { episode: number; timeUntilAiring: number } | null;
 }
 
 export const GENRE_LIST = [
