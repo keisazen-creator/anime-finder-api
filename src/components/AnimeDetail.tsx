@@ -307,9 +307,20 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   })();
 
   // Stats label
-  const statsLabel = layout.type === "real-seasons"
-    ? `${layout.seasons.length} season${layout.seasons.length > 1 ? "s" : ""}`
-    : `${totalEps} eps`;
+  // Stats label — show airing progress
+  const statsLabel = (() => {
+    if (isMovie) return "Movie";
+    if (anime.status === "RELEASING" && anime.nextAiringEpisode && anime.episodes) {
+      return `Airing · ${effectiveEps}/${anime.episodes} released`;
+    }
+    if (anime.status === "RELEASING" && anime.nextAiringEpisode) {
+      return `Airing · ${effectiveEps} released`;
+    }
+    if (layout.type === "real-seasons") {
+      return `${layout.seasons.length} season${layout.seasons.length > 1 ? "s" : ""}`;
+    }
+    return `${totalEps} eps`;
+  })();
 
   // ── Fullscreen player overlay ──
   if (playerOpen && streamUrls) {
