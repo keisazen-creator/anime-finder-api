@@ -205,10 +205,12 @@ export async function getAnimeByGenre(genre: string): Promise<AnimeResult[]> {
               description
               episodes
               status
+              format
               genres
               averageScore
               seasonYear
               bannerImage
+              nextAiringEpisode { episode timeUntilAiring }
             }
           }
         }
