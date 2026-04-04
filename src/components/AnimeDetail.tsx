@@ -521,20 +521,6 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            {showSelector && (
-              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
-                <SelectTrigger className="w-[180px] h-10">
-                  <Layers className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectorOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
             <Button onClick={() => handleWatch(rangeStart)} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               Watch
