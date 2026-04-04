@@ -124,11 +124,15 @@ const Index = () => {
   };
 
   const selectAnime = (anime: AnimeResult) => {
-    setNavStack((prev) => [...prev, anime]);
+    setNavStack((prev) => {
+      const next = [...prev, anime];
+      window.history.pushState({ page: "home", navDepth: next.length }, "");
+      return next;
+    });
   };
 
   const goBack = () => {
-    setNavStack((prev) => prev.slice(0, -1));
+    window.history.back();
   };
 
   const goHome = () => {
@@ -136,6 +140,7 @@ const Index = () => {
     setQuery("");
     setSearchKey((k) => k + 1);
     setPage("home");
+    window.history.pushState({ page: "home", navDepth: 0 }, "");
   };
 
   const handleRandom = async () => {
