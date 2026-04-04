@@ -7,8 +7,7 @@ import AnimeRecommendations from "@/components/AnimeRecommendations";
 import SeasonNavigator from "@/components/SeasonNavigator";
 import DownloadLinks from "@/components/DownloadLinks";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Layers, Globe, Mic, Heart } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
@@ -267,17 +266,6 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     [imdbId, title, totalEps, lang, buildStream, anime, layout]
   );
 
-  const changeIndex = (val: string) => {
-    const idx = parseInt(val);
-    setSelectedIndex(idx);
-    // Set episode to start of new range
-    if (layout.type === "real-seasons") {
-      setCurrentEp(layout.seasons[idx].absoluteStart);
-    } else {
-      setCurrentEp(layout.chunks[idx].start);
-    }
-  };
-
   const toggleLang = (newLang: StreamLang) => {
     setLang(newLang);
     if (playerOpen) {
@@ -292,20 +280,9 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const description = anime.description?.replace(/<[^>]*>/g, "") || "";
   const currentUrl = streamUrls ? streamUrls[server] : "";
 
-  // Selector options
-  const selectorOptions = layout.type === "real-seasons"
-    ? layout.seasons.map((s, i) => ({ value: String(i), label: `${s.label} (${s.episodeCount} eps)` }))
-    : layout.chunks.map((c, i) => ({ value: String(i), label: `Episodes ${c.label}` }));
-
-  const selectorLabel = layout.type === "real-seasons"
-    ? layout.seasons[selectedIndex]?.label || "Season 1"
-    : `Ep ${layout.chunks[selectedIndex]?.label || "1–100"}`;
-
   const headerLabel = layout.type === "real-seasons"
     ? `${layout.seasons[selectedIndex]?.label} · Episodes 1–${layout.seasons[selectedIndex]?.episodeCount}`
     : `Episodes ${layout.chunks[selectedIndex]?.start}–${layout.chunks[selectedIndex]?.end}`;
-
-  const showSelector = selectorOptions.length > 1;
 
   // Player status label
   const playerEpLabel = (() => {
@@ -388,19 +365,6 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            {showSelector && (
-              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
-                <SelectTrigger className="w-auto max-w-[140px] h-8 text-[11px]">
-                  <Layers className="w-3 h-3 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectorOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
 
             <div className="flex gap-1.5 ml-auto">
               <Button variant="secondary" size="sm" onClick={prevEp} disabled={currentEp <= rangeStart} className="gap-1 h-8 text-xs">
@@ -520,20 +484,6 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
                 <Mic className="w-3.5 h-3.5" /> DUB
               </button>
             </div>
-
-            {showSelector && (
-              <Select value={String(selectedIndex)} onValueChange={changeIndex}>
-                <SelectTrigger className="w-[180px] h-10">
-                  <Layers className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectorOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
 
             <Button onClick={() => handleWatch(rangeStart)} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}

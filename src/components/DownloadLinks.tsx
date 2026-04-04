@@ -8,8 +8,6 @@ interface Props {
 }
 
 const DOWNLOAD_SOURCES = [
-  { name: "AnimePahe", url: (title: string) => `https://animepahe.ru/anime/${encodeURIComponent(title.toLowerCase().replace(/\s+/g, "-"))}` },
-  { name: "GoGoAnime", url: (title: string) => `https://gogoanime3.cc/search.html?keyword=${encodeURIComponent(title)}` },
   { name: "Nyaa.si", url: (title: string) => `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(title)}` },
 ];
 

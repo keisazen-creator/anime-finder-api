@@ -31,6 +31,42 @@ const Index = () => {
 
   const selected = navStack.length > 0 ? navStack[navStack.length - 1] : null;
 
+  // Browser back button support via pushState
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const state = e.state;
+      if (state?.page === "home") {
+        setNavStack([]);
+        setPage("home");
+        setQuery("");
+        setSearchKey((k) => k + 1);
+      } else if (state?.page === "history") {
+        setNavStack([]);
+        setPage("history");
+      } else if (state?.page === "schedule") {
+        setNavStack([]);
+        setPage("schedule");
+      } else if (state?.navDepth !== undefined) {
+        // Go back in nav stack
+        setNavStack((prev) => prev.slice(0, state.navDepth));
+        setPage("home");
+      } else {
+        // Default: go home
+        setNavStack([]);
+        setPage("home");
+        setQuery("");
+        setSearchKey((k) => k + 1);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    // Set initial state
+    if (!window.history.state) {
+      window.history.replaceState({ page: "home", navDepth: 0 }, "");
+    }
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   useEffect(() => {
     let active = true;
     const loadTrending = async () => {
@@ -88,11 +124,15 @@ const Index = () => {
   };
 
   const selectAnime = (anime: AnimeResult) => {
-    setNavStack((prev) => [...prev, anime]);
+    setNavStack((prev) => {
+      const next = [...prev, anime];
+      window.history.pushState({ page: "home", navDepth: next.length }, "");
+      return next;
+    });
   };
 
   const goBack = () => {
-    setNavStack((prev) => prev.slice(0, -1));
+    window.history.back();
   };
 
   const goHome = () => {
@@ -100,6 +140,7 @@ const Index = () => {
     setQuery("");
     setSearchKey((k) => k + 1);
     setPage("home");
+    window.history.pushState({ page: "home", navDepth: 0 }, "");
   };
 
   const handleRandom = async () => {
@@ -167,14 +208,14 @@ const Index = () => {
               {randomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shuffle className="w-5 h-5" />}
             </button>
             <button
-              onClick={() => setPage("schedule")}
+              onClick={() => { setPage("schedule"); window.history.pushState({ page: "schedule" }, ""); }}
               className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               title="Airing Schedule"
             >
               <Calendar className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setPage("history")}
+              onClick={() => { setPage("history"); window.history.pushState({ page: "history" }, ""); }}
               className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               title="Watch History & Favorites"
             >
