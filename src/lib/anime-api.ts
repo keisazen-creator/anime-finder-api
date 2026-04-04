@@ -177,10 +177,12 @@ export async function getTrendingAnime(): Promise<AnimeResult[]> {
             description
             episodes
             status
+            format
             genres
             averageScore
             seasonYear
             bannerImage
+            nextAiringEpisode { episode timeUntilAiring }
           }
         }
       }
