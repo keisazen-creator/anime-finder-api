@@ -4,20 +4,21 @@ import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/wa
 import AnimeCard from "@/components/AnimeCard";
 import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
 import SearchBar from "@/components/SearchBar";
-import { Flame, History, ChevronRight, BookOpen, X, Calendar, Shuffle, Loader2 } from "lucide-react";
+import BottomNav, { type NavTab } from "@/components/BottomNav";
+import { Flame, History, ChevronRight, X, Loader2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const AnimeDetail = lazy(() => import("@/components/AnimeDetail"));
-const HistoryPage = lazy(() => import("@/pages/History"));
-const SchedulePage = lazy(() => import("@/pages/Schedule"));
+const MyLists = lazy(() => import("@/pages/MyLists"));
+const Browse = lazy(() => import("@/pages/Browse"));
+const Simulcasts = lazy(() => import("@/pages/Simulcasts"));
 
 const Index = () => {
-  const [page, setPage] = useState<"home" | "history" | "schedule">("home");
+  const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [randomLoading, setRandomLoading] = useState(false);
   const [results, setResults] = useState<AnimeResult[]>([]);
   const [trending, setTrending] = useState<AnimeResult[]>([]);
-  // Navigation stack for back functionality
   const [navStack, setNavStack] = useState<AnimeResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
@@ -27,42 +28,30 @@ const Index = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [recentlyWatched, setRecentlyWatched] = useState<WatchEntry[]>([]);
-  const [searchKey, setSearchKey] = useState(0); // to reset search bar
+  const [searchKey, setSearchKey] = useState(0);
 
   const selected = navStack.length > 0 ? navStack[navStack.length - 1] : null;
 
-  // Browser back button support via pushState
+  // Browser back button support
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       const state = e.state;
-      if (state?.page === "home") {
-        setNavStack([]);
-        setPage("home");
-        setQuery("");
-        setSearchKey((k) => k + 1);
-      } else if (state?.page === "history") {
-        setNavStack([]);
-        setPage("history");
-      } else if (state?.page === "schedule") {
-        setNavStack([]);
-        setPage("schedule");
-      } else if (state?.navDepth !== undefined) {
-        // Go back in nav stack
+      if (state?.navDepth !== undefined && state.navDepth > 0) {
         setNavStack((prev) => prev.slice(0, state.navDepth));
-        setPage("home");
-      } else {
-        // Default: go home
+        setActiveTab("home");
+      } else if (state?.tab) {
         setNavStack([]);
-        setPage("home");
+        setActiveTab(state.tab);
+      } else {
+        setNavStack([]);
+        setActiveTab("home");
         setQuery("");
         setSearchKey((k) => k + 1);
       }
     };
-
     window.addEventListener("popstate", handlePopState);
-    // Set initial state
     if (!window.history.state) {
-      window.history.replaceState({ page: "home", navDepth: 0 }, "");
+      window.history.replaceState({ tab: "home", navDepth: 0 }, "");
     }
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -86,7 +75,6 @@ const Index = () => {
     return () => { active = false; };
   }, []);
 
-  // Refresh watch history when returning from detail
   useEffect(() => {
     if (!selected) setRecentlyWatched(getRecentlyWatched());
   }, [selected]);
@@ -96,15 +84,8 @@ const Index = () => {
     setLoadError(null);
     if (!q) { setResults([]); return; }
     setSearching(true);
-    try {
-      const data = await searchAnime(q);
-      setResults(data);
-    } catch {
-      setResults([]);
-      setLoadError("Search is unavailable right now.");
-    } finally {
-      setSearching(false);
-    }
+    try { setResults(await searchAnime(q)); } catch { setResults([]); setLoadError("Search is unavailable."); }
+    setSearching(false);
   }, []);
 
   const handleGenreChange = async (genre: GenreFilter) => {
@@ -112,84 +93,96 @@ const Index = () => {
     setLoadError(null);
     if (genre === "Trending") { setGenreResults([]); return; }
     setGenreLoading(true);
-    try {
-      const data = await getAnimeByGenre(genre);
-      setGenreResults(data);
-    } catch {
-      setGenreResults([]);
-      setLoadError("Couldn't load that genre right now.");
-    } finally {
-      setGenreLoading(false);
-    }
+    try { setGenreResults(await getAnimeByGenre(genre)); } catch { setGenreResults([]); }
+    setGenreLoading(false);
   };
 
   const selectAnime = (anime: AnimeResult) => {
     setNavStack((prev) => {
       const next = [...prev, anime];
-      window.history.pushState({ page: "home", navDepth: next.length }, "");
+      window.history.pushState({ tab: activeTab, navDepth: next.length }, "");
       return next;
     });
   };
 
-  const goBack = () => {
-    window.history.back();
-  };
+  const goBack = () => window.history.back();
 
   const goHome = () => {
     setNavStack([]);
     setQuery("");
     setSearchKey((k) => k + 1);
-    setPage("home");
-    window.history.pushState({ page: "home", navDepth: 0 }, "");
+    setActiveTab("home");
+    window.history.pushState({ tab: "home", navDepth: 0 }, "");
+  };
+
+  const handleTabChange = (tab: NavTab) => {
+    if (tab === "random") {
+      handleRandom();
+      return;
+    }
+    setNavStack([]);
+    setActiveTab(tab);
+    window.history.pushState({ tab, navDepth: 0 }, "");
   };
 
   const handleRandom = async () => {
     setRandomLoading(true);
     try {
       const anime = await getRandomAnime();
-      if (anime) selectAnime(anime);
+      if (anime) { setActiveTab("home"); selectAnime(anime); }
     } catch {}
     setRandomLoading(false);
   };
 
   const displayList = query ? results : activeGenre === "Trending" ? trending : genreResults;
-  const heading = query
-    ? `Results for "${query}"`
-    : activeGenre === "Trending"
-    ? "Trending Now"
-    : activeGenre;
+  const heading = query ? `Results for "${query}"` : activeGenre === "Trending" ? "Trending Now" : activeGenre;
   const isLoading = searching || genreLoading || initialLoading;
 
-  if (page === "history") {
-    return (
-      <Suspense fallback={<div className="min-h-screen bg-background" />}>
-        <HistoryPage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
-      </Suspense>
-    );
-  }
-
-  if (page === "schedule") {
-    return (
-      <Suspense fallback={<div className="min-h-screen bg-background" />}>
-        <SchedulePage onBack={() => setPage("home")} onSelect={(a) => { selectAnime(a); setPage("home"); }} />
-      </Suspense>
-    );
-  }
-
+  // Show detail view (regardless of tab)
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto px-4 py-8 pb-20">
           <Suspense fallback={<div className="min-h-screen bg-background" />}>
             <AnimeDetail anime={selected} onBack={goBack} onSelect={selectAnime} />
           </Suspense>
         </div>
+        <BottomNav active={activeTab} onChange={handleTabChange} randomLoading={randomLoading} />
       </div>
     );
   }
 
+  // Non-home tabs
+  if (activeTab === "lists") {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <MyLists onSelect={selectAnime} />
+        <BottomNav active={activeTab} onChange={handleTabChange} randomLoading={randomLoading} />
+      </Suspense>
+    );
+  }
+
+  if (activeTab === "browse") {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <Browse onSelect={selectAnime} />
+        <BottomNav active={activeTab} onChange={handleTabChange} randomLoading={randomLoading} />
+      </Suspense>
+    );
+  }
+
+  if (activeTab === "simulcasts") {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <Simulcasts onSelect={selectAnime} />
+        <BottomNav active={activeTab} onChange={handleTabChange} randomLoading={randomLoading} />
+      </Suspense>
+    );
+  }
+
+  // Home tab
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
@@ -198,30 +191,6 @@ const Index = () => {
             <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
           </button>
           <SearchBar key={searchKey} onSearch={handleSearch} isSearching={searching} onClearBack={query ? goHome : undefined} />
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={handleRandom}
-              disabled={randomLoading}
-              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Random Anime"
-            >
-              {randomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shuffle className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={() => { setPage("schedule"); window.history.pushState({ page: "schedule" }, ""); }}
-              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Airing Schedule"
-            >
-              <Calendar className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => { setPage("history"); window.history.pushState({ page: "history" }, ""); }}
-              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Watch History & Favorites"
-            >
-              <BookOpen className="w-5 h-5" />
-            </button>
-          </div>
         </div>
       </header>
 
@@ -264,45 +233,30 @@ const Index = () => {
               {recentlyWatched.map((entry) => (
                 <button
                   key={entry.animeId}
-                  onClick={() =>
-                    selectAnime({
-                      id: entry.animeId,
-                      title: { romaji: entry.title, english: entry.title },
-                      coverImage: { large: entry.coverImage },
-                      episodes: entry.totalEpisodes,
-                    })
-                  }
-                  className="group relative flex flex-col text-left rounded-lg overflow-hidden bg-card border border-border transition-all duration-300 hover:border-primary/40 hover:shadow-[0_8px_32px_hsl(var(--primary)/0.15)] active:scale-[0.97]"
+                  onClick={() => selectAnime({
+                    id: entry.animeId,
+                    title: { romaji: entry.title, english: entry.title },
+                    coverImage: { large: entry.coverImage },
+                    episodes: entry.totalEpisodes,
+                  })}
+                  className="group relative flex flex-col text-left rounded-lg overflow-hidden bg-card border border-border transition-all duration-300 hover:border-primary/40 active:scale-[0.97]"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden">
-                    <img
-                      src={entry.coverImage}
-                      alt={entry.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                    <img src={entry.coverImage} alt={entry.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFromHistory(entry.animeId);
-                        setRecentlyWatched(getRecentlyWatched());
-                      }}
+                      onClick={(e) => { e.stopPropagation(); removeFromHistory(entry.animeId); setRecentlyWatched(getRecentlyWatched()); }}
                       className="absolute top-1 right-1 p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all z-10"
                     >
                       <X className="w-3 h-3" />
                     </button>
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
-                      <div
-                        className="h-full bg-primary rounded-r-full"
-                        style={{ width: `${Math.min((entry.episode / entry.totalEpisodes) * 100, 100)}%` }}
-                      />
+                      <div className="h-full bg-primary rounded-r-full" style={{ width: `${Math.min((entry.episode / entry.totalEpisodes) * 100, 100)}%` }} />
                     </div>
                   </div>
                   <div className="p-2.5">
                     <h3 className="text-xs font-display font-semibold text-foreground line-clamp-1">{entry.title}</h3>
                     <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                      S{entry.season} · E{entry.episode}
-                      <ChevronRight className="w-3 h-3" />
+                      S{entry.season} · E{entry.episode} <ChevronRight className="w-3 h-3" />
                     </p>
                   </div>
                 </button>
@@ -331,6 +285,8 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      <BottomNav active={activeTab} onChange={handleTabChange} randomLoading={randomLoading} />
     </div>
   );
 };

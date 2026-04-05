@@ -34,7 +34,7 @@ export const GENRE_LIST = [
   "Supernatural",
   "Sports",
   "Ecchi",
-  "Hentai",
+  "Music",
 ] as const;
 
 export type GenreFilter = (typeof GENRE_LIST)[number];
