@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { getAiringSchedule, formatTimeUntil, type ScheduleEntry } from "@/lib/anime-schedule";
-import { getTrendingAnime, type AnimeResult } from "@/lib/anime-api";
+import { formatTimeUntil, type ScheduleEntry } from "@/lib/anime-schedule";
+import { type AnimeResult } from "@/lib/anime-api";
+import { getSeasonalAnime } from "@/lib/anime-schedule";
 import AnimeCard from "@/components/AnimeCard";
 import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Calendar, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type Season = "winter" | "spring" | "summer" | "fall";
+type Season = "WINTER" | "SPRING" | "SUMMER" | "FALL";
 
 interface Props {
   onSelect: (anime: AnimeResult) => void;
@@ -14,95 +14,123 @@ interface Props {
 
 function getCurrentSeason(): Season {
   const month = new Date().getMonth();
-  if (month < 3) return "winter";
-  if (month < 6) return "spring";
-  if (month < 9) return "summer";
-  return "fall";
+  if (month < 3) return "WINTER";
+  if (month < 6) return "SPRING";
+  if (month < 9) return "SUMMER";
+  return "FALL";
 }
 
-const SEASON_LABELS: Record<Season, string> = {
-  winter: "❄️ Winter",
-  spring: "🌸 Spring",
-  summer: "☀️ Summer",
-  fall: "🍂 Fall",
+function getCurrentYear(): number {
+  return new Date().getFullYear();
+}
+
+const SEASON_ORDER: Season[] = ["WINTER", "SPRING", "SUMMER", "FALL"];
+const SEASON_DISPLAY: Record<Season, string> = {
+  WINTER: "Winter",
+  SPRING: "Spring",
+  SUMMER: "Summer",
+  FALL: "Fall",
 };
 
+function buildSeasonOptions(): { season: Season; year: number; label: string }[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentSeason = getCurrentSeason();
+  const currentIdx = SEASON_ORDER.indexOf(currentSeason);
+
+  const options: { season: Season; year: number; label: string }[] = [];
+
+  // 2 seasons back + current + 3 ahead
+  for (let offset = -2; offset <= 3; offset++) {
+    let idx = currentIdx + offset;
+    let year = currentYear;
+    while (idx < 0) { idx += 4; year--; }
+    while (idx > 3) { idx -= 4; year++; }
+    const s = SEASON_ORDER[idx];
+    options.push({ season: s, year, label: `${SEASON_DISPLAY[s]} ${year}` });
+  }
+
+  return options;
+}
+
 const Simulcasts = ({ onSelect }: Props) => {
-  const [season, setSeason] = useState<Season>(getCurrentSeason());
-  const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const currentSeason = getCurrentSeason();
+  const currentYear = getCurrentYear();
+
+  const [season, setSeason] = useState<Season>(currentSeason);
+  const [year, setYear] = useState(currentYear);
+  const [anime, setAnime] = useState<AnimeResult[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const seasonOptions = buildSeasonOptions();
+  const selectedKey = `${season}-${year}`;
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       setLoading(true);
       try {
-        const data = await getAiringSchedule();
-        if (active) setSchedule(data);
-      } catch {}
+        const data = await getSeasonalAnime(season, year);
+        if (active) setAnime(data);
+      } catch {
+        if (active) setAnime([]);
+      }
       if (active) setLoading(false);
     };
     load();
     return () => { active = false; };
-  }, []);
+  }, [season, year]);
 
-  const seasons: Season[] = ["winter", "spring", "summer", "fall"];
+  const handleSeasonChange = (value: string) => {
+    const [s, y] = value.split("-");
+    setSeason(s as Season);
+    setYear(Number(y));
+  };
+
+  const isCurrent = season === currentSeason && year === currentYear;
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-primary" />
-          <h1 className="text-lg font-display font-bold text-foreground">Simulcasts</h1>
-        </div>
-        <div className="max-w-6xl mx-auto px-4 pb-2 flex gap-2">
-          {seasons.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSeason(s)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-                season === s
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              {SEASON_LABELS[s]}
-            </button>
-          ))}
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+          <h1 className="text-lg font-display font-bold text-foreground">Simulcast Season</h1>
+          <Select value={selectedKey} onValueChange={handleSeasonChange}>
+            <SelectTrigger className="w-auto min-w-[160px] h-9 text-sm bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {seasonOptions.map((opt) => (
+                <SelectItem key={`${opt.season}-${opt.year}`} value={`${opt.season}-${opt.year}`}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-4">
-        <h2 className="text-sm font-display font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
-          {SEASON_LABELS[season]} {new Date().getFullYear()} — Currently Airing
-        </h2>
+      <main className="max-w-6xl mx-auto px-4 py-5">
+        <div className="mb-4">
+          <h2 className="text-sm font-display font-semibold text-foreground">
+            {SEASON_DISPLAY[season]} {year}{isCurrent ? " — Currently Airing" : ""}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {loading ? "Loading..." : `${anime.length} titles`}
+          </p>
+        </div>
 
         {loading ? (
-          <AnimeGridSkeleton count={12} />
-        ) : schedule.length === 0 ? (
+          <AnimeGridSkeleton count={18} />
+        ) : anime.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-16">No simulcasts available for this season.</p>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-            {schedule.map((entry, i) => (
-              <div key={entry.id} className="relative">
-                <AnimeCard
-                  anime={{
-                    id: entry.id,
-                    title: entry.title,
-                    coverImage: entry.coverImage,
-                    episodes: entry.episodes || undefined,
-                    genres: entry.genres,
-                    averageScore: entry.averageScore || undefined,
-                    status: "RELEASING",
-                    nextAiringEpisode: entry.nextAiringEpisode ? { episode: entry.nextAiringEpisode.episode, timeUntilAiring: entry.nextAiringEpisode.timeUntilAiring } : undefined,
-                  }}
-                  onClick={onSelect}
-                  index={i}
-                />
-                {entry.nextAiringEpisode && (
+            {anime.map((a, i) => (
+              <div key={a.id} className="relative">
+                <AnimeCard anime={a} onClick={onSelect} index={i} />
+                {a.status === "RELEASING" && a.nextAiringEpisode && (
                   <div className="absolute top-1 left-1 bg-primary/90 backdrop-blur-sm text-primary-foreground text-[9px] font-medium px-1.5 py-0.5 rounded z-10">
-                    EP {entry.nextAiringEpisode.episode} · {formatTimeUntil(entry.nextAiringEpisode.timeUntilAiring)}
+                    EP {a.nextAiringEpisode.episode} · {formatTimeUntil(a.nextAiringEpisode.timeUntilAiring)}
                   </div>
                 )}
               </div>

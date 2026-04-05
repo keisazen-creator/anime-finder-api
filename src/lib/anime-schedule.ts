@@ -52,6 +52,38 @@ export async function getAiringSchedule(): Promise<ScheduleEntry[]> {
   });
 }
 
+export async function getSeasonalAnime(season: string, year: number): Promise<any[]> {
+  return cachedFetch(`seasonal:${season}:${year}`, async () => {
+    const res = await fetch(ANILIST_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `
+          query ($season: MediaSeason, $year: Int) {
+            Page(perPage: 50) {
+              media(type: ANIME, season: $season, seasonYear: $year, sort: POPULARITY_DESC, isAdult: false) {
+                id
+                title { romaji english }
+                coverImage { large }
+                episodes
+                status
+                format
+                genres
+                averageScore
+                seasonYear
+                nextAiringEpisode { episode timeUntilAiring }
+              }
+            }
+          }
+        `,
+        variables: { season, year },
+      }),
+    });
+    const data = await res.json();
+    return data?.data?.Page?.media || [];
+  });
+}
+
 export function formatTimeUntil(seconds: number): string {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
