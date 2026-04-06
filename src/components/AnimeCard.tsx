@@ -5,10 +5,13 @@ interface Props {
   anime: AnimeResult;
   onClick: (anime: AnimeResult) => void;
   index: number;
+  titleLang?: "en" | "jp";
 }
 
-const AnimeCard = ({ anime, onClick, index }: Props) => {
-  const title = anime.title.english || anime.title.romaji;
+const AnimeCard = ({ anime, onClick, index, titleLang = "en" }: Props) => {
+  const title = titleLang === "jp"
+    ? anime.title.romaji
+    : anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
 
   return (

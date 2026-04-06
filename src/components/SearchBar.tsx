@@ -7,22 +7,23 @@ interface Props {
   onSearch: (query: string) => void;
   isSearching: boolean;
   onClearBack?: () => void;
+  titleLang?: "en" | "jp";
+  onToggleLang?: () => void;
 }
 
-const SearchBar = ({ onSearch, isSearching, onClearBack }: Props) => {
+const SearchBar = ({ onSearch, isSearching, onClearBack, titleLang, onToggleLang }: Props) => {
   const [value, setValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Debounced live search as user types
   const debouncedSearch = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (q.trim().length >= 2) {
         onSearch(q.trim());
       }
-    }, 400);
+    }, 300); // faster debounce
   }, [onSearch]);
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
@@ -99,6 +100,16 @@ const SearchBar = ({ onSearch, isSearching, onClearBack }: Props) => {
         )}
         <SearchHistory onSelect={handleHistorySelect} visible={showHistory && !value} />
       </div>
+      {onToggleLang && (
+        <button
+          type="button"
+          onClick={onToggleLang}
+          className="shrink-0 px-2 py-1.5 rounded-md text-[10px] font-bold bg-secondary text-secondary-foreground hover:bg-accent transition-colors border border-border"
+          title={titleLang === "en" ? "Switch to Japanese titles" : "Switch to English titles"}
+        >
+          {titleLang === "en" ? "EN" : "JP"}
+        </button>
+      )}
     </form>
   );
 };

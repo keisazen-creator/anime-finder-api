@@ -3,12 +3,13 @@ import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
+import { getWatchlistStatus, setWatchlistStatus, type WatchlistStatus, WATCHLIST_LABELS } from "@/lib/watchlist";
 import AnimeRecommendations from "@/components/AnimeRecommendations";
 import SeasonNavigator from "@/components/SeasonNavigator";
 import DownloadLinks from "@/components/DownloadLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart, Plus, Check } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
@@ -96,23 +97,48 @@ const REAL_SEASON_DATA: Record<string, number[]> = {
 const LONG_ANIME_EPISODES: Record<string, number> = {
   "one piece": 1122,
   "naruto shippuden": 500,
+  "naruto shippuuden": 500,
   "naruto": 220,
   "bleach": 366,
   "bleach: thousand-year blood war": 52,
   "dragon ball z": 291,
   "dragon ball": 153,
+  "dragon ball gt": 64,
+  "dragon ball super": 131,
   "fairy tail": 328,
+  "fairy tail: final series": 51,
   "gintama": 367,
   "black clover": 170,
   "detective conan": 1150,
   "case closed": 1150,
   "boruto": 293,
+  "boruto: naruto next generations": 293,
   "inuyasha": 193,
   "yu-gi-oh": 224,
+  "yu-gi-oh! duel monsters": 224,
   "pokemon": 276,
+  "pocket monsters": 276,
   "shin chan": 1200,
+  "crayon shin-chan": 1200,
   "doraemon": 800,
   "captain tsubasa": 128,
+  "hunter x hunter (2011)": 148,
+  "hunter x hunter": 148,
+  "d.gray-man": 116,
+  "katekyo hitman reborn": 203,
+  "katekyo hitman reborn!": 203,
+  "urusei yatsura": 195,
+  "ranma 1/2": 161,
+  "ranma ½": 161,
+  "rurouni kenshin": 95,
+  "slam dunk": 101,
+  "yu yu hakusho": 112,
+  "saint seiya": 114,
+  "major": 154,
+  "hajime no ippo": 127,
+  "initial d": 86,
+  "beyblade": 51,
+  "digimon adventure": 54,
 };
 
 /** Determine actual available episodes, respecting airing status and format */
@@ -198,6 +224,8 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbId, setImdbId] = useState<string | null>(null);
   const [faved, setFaved] = useState(() => isFavorite(anime.id));
+  const [wlStatus, setWlStatus] = useState<WatchlistStatus | null>(() => getWatchlistStatus(anime.id));
+  const [showWlMenu, setShowWlMenu] = useState(false);
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
@@ -474,19 +502,50 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
         </div>
 
         <div className="flex-1 space-y-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-2">
             <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight" style={{ lineHeight: "1.15" }}>
               {title}
             </h1>
-            <button
-              onClick={() => {
-                toggleFavorite({ animeId: anime.id, title, coverImage: anime.coverImage.large });
-                setFaved((p) => !p);
-              }}
-              className="shrink-0 mt-1 p-2 rounded-full transition-colors hover:bg-secondary active:scale-90"
-            >
-              <Heart className={`w-5 h-5 ${faved ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0 mt-1">
+              {/* Watchlist + button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowWlMenu((p) => !p)}
+                  className={`p-2 rounded-full transition-colors hover:bg-secondary active:scale-90 ${wlStatus ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  {wlStatus ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                </button>
+                {showWlMenu && (
+                  <div className="absolute right-0 top-10 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px] animate-fade-up">
+                    {(Object.keys(WATCHLIST_LABELS) as WatchlistStatus[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setWatchlistStatus(anime.id, s, title, anime.coverImage.large);
+                          setWlStatus(s);
+                          setShowWlMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-accent ${
+                          wlStatus === s ? "text-primary" : "text-foreground"
+                        }`}
+                      >
+                        {WATCHLIST_LABELS[s]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Favorite heart */}
+              <button
+                onClick={() => {
+                  toggleFavorite({ animeId: anime.id, title, coverImage: anime.coverImage.large });
+                  setFaved((p) => !p);
+                }}
+                className="p-2 rounded-full transition-colors hover:bg-secondary active:scale-90"
+              >
+                <Heart className={`w-5 h-5 ${faved ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 items-center text-sm">

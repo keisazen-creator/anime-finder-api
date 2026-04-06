@@ -1,4 +1,4 @@
-import { Home, BookmarkCheck, Compass, Radio, Shuffle } from "lucide-react";
+import { Home, BookmarkCheck, Compass, Radio, Shuffle, Loader2 } from "lucide-react";
 
 export type NavTab = "home" | "lists" | "browse" | "simulcasts" | "random";
 
@@ -23,22 +23,23 @@ const BottomNav = ({ active, onChange, randomLoading }: Props) => {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = active === tab.id;
+          const isRandomLoading = tab.id === "random" && randomLoading;
           return (
             <button
               key={tab.id}
               onClick={() => onChange(tab.id)}
-              disabled={tab.id === "random" && randomLoading}
+              disabled={isRandomLoading}
               className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon
-                className={`w-5 h-5 ${
-                  tab.id === "random" && randomLoading ? "animate-spin" : ""
-                }`}
-              />
+              {isRandomLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Icon className="w-5 h-5" />
+              )}
               <span className="text-[10px] font-medium">{tab.label}</span>
             </button>
           );
