@@ -3,12 +3,13 @@ import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
 import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
+import { getWatchlistStatus, setWatchlistStatus, type WatchlistStatus, WATCHLIST_LABELS } from "@/lib/watchlist";
 import AnimeRecommendations from "@/components/AnimeRecommendations";
 import SeasonNavigator from "@/components/SeasonNavigator";
 import DownloadLinks from "@/components/DownloadLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Star, ChevronLeft, ChevronRight, X, Globe, Mic, Heart, Plus, Check } from "lucide-react";
 
 interface Props {
   anime: AnimeResult;
@@ -96,23 +97,48 @@ const REAL_SEASON_DATA: Record<string, number[]> = {
 const LONG_ANIME_EPISODES: Record<string, number> = {
   "one piece": 1122,
   "naruto shippuden": 500,
+  "naruto shippuuden": 500,
   "naruto": 220,
   "bleach": 366,
   "bleach: thousand-year blood war": 52,
   "dragon ball z": 291,
   "dragon ball": 153,
+  "dragon ball gt": 64,
+  "dragon ball super": 131,
   "fairy tail": 328,
+  "fairy tail: final series": 51,
   "gintama": 367,
   "black clover": 170,
   "detective conan": 1150,
   "case closed": 1150,
   "boruto": 293,
+  "boruto: naruto next generations": 293,
   "inuyasha": 193,
   "yu-gi-oh": 224,
+  "yu-gi-oh! duel monsters": 224,
   "pokemon": 276,
+  "pocket monsters": 276,
   "shin chan": 1200,
+  "crayon shin-chan": 1200,
   "doraemon": 800,
   "captain tsubasa": 128,
+  "hunter x hunter (2011)": 148,
+  "hunter x hunter": 148,
+  "d.gray-man": 116,
+  "katekyo hitman reborn": 203,
+  "katekyo hitman reborn!": 203,
+  "urusei yatsura": 195,
+  "ranma 1/2": 161,
+  "ranma ½": 161,
+  "rurouni kenshin": 95,
+  "slam dunk": 101,
+  "yu yu hakusho": 112,
+  "saint seiya": 114,
+  "major": 154,
+  "hajime no ippo": 127,
+  "initial d": 86,
+  "beyblade": 51,
+  "digimon adventure": 54,
 };
 
 /** Determine actual available episodes, respecting airing status and format */
