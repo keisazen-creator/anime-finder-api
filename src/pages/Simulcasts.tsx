@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatTimeUntil, type ScheduleEntry } from "@/lib/anime-schedule";
+import { formatTimeUntil } from "@/lib/anime-schedule";
 import { type AnimeResult } from "@/lib/anime-api";
 import { getSeasonalAnime } from "@/lib/anime-schedule";
 import AnimeCard from "@/components/AnimeCard";
@@ -40,8 +40,8 @@ function buildSeasonOptions(): { season: Season; year: number; label: string }[]
 
   const options: { season: Season; year: number; label: string }[] = [];
 
-  // 2 seasons back + current + 3 ahead
-  for (let offset = -2; offset <= 3; offset++) {
+  // 8 seasons back + current + 8 ahead = 17 options (~4 years each way)
+  for (let offset = -8; offset <= 8; offset++) {
     let idx = currentIdx + offset;
     let year = currentYear;
     while (idx < 0) { idx += 4; year--; }
@@ -124,7 +124,7 @@ const Simulcasts = ({ onSelect }: Props) => {
         ) : anime.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-16">No simulcasts available for this season.</p>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {anime.map((a, i) => (
               <div key={a.id} className="relative">
                 <AnimeCard anime={a} onClick={onSelect} index={i} />
