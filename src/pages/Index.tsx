@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { searchAnime, getTrendingAnime, getAnimeByGenre, getRandomAnime, GENRE_LIST, type AnimeResult, type GenreFilter } from "@/lib/anime-api";
+import { searchAnime, getTrendingAnime, getRandomAnime, type AnimeResult } from "@/lib/anime-api";
 import { getRecentlyWatched, removeFromHistory, type WatchEntry } from "@/lib/watch-history";
 import AnimeCard from "@/components/AnimeCard";
 import { AnimeGridSkeleton } from "@/components/AnimeCardSkeleton";
 import SearchBar from "@/components/SearchBar";
 import BottomNav, { type NavTab } from "@/components/BottomNav";
-import { Flame, History, ChevronRight, X, Loader2 } from "lucide-react";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Flame, History, ChevronRight, X, Sparkles } from "lucide-react";
 import kogemiLogo from "@/assets/kogemi-logo.png";
 
 const AnimeDetail = lazy(() => import("@/components/AnimeDetail"));
@@ -22,13 +21,12 @@ const Index = () => {
   const [navStack, setNavStack] = useState<AnimeResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
-  const [activeGenre, setActiveGenre] = useState<GenreFilter>("Trending");
-  const [genreResults, setGenreResults] = useState<AnimeResult[]>([]);
-  const [genreLoading, setGenreLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [recentlyWatched, setRecentlyWatched] = useState<WatchEntry[]>([]);
   const [searchKey, setSearchKey] = useState(0);
+  const [titleLang, setTitleLang] = useState<"en" | "jp">("en");
+  const [recommendations, setRecommendations] = useState<AnimeResult[]>([]);
 
   const selected = navStack.length > 0 ? navStack[navStack.length - 1] : null;
 
@@ -63,7 +61,13 @@ const Index = () => {
       setLoadError(null);
       try {
         const data = await getTrendingAnime();
-        if (active) setTrending(data);
+        if (active) {
+          setTrending(data);
+          // Build "You Might Like" from trending genres
+          if (data.length > 6) {
+            setRecommendations(data.slice(6, 14));
+          }
+        }
       } catch {
         if (active) { setTrending([]); setLoadError("Couldn't load anime right now."); }
       } finally {
@@ -87,15 +91,6 @@ const Index = () => {
     try { setResults(await searchAnime(q)); } catch { setResults([]); setLoadError("Search is unavailable."); }
     setSearching(false);
   }, []);
-
-  const handleGenreChange = async (genre: GenreFilter) => {
-    setActiveGenre(genre);
-    setLoadError(null);
-    if (genre === "Trending") { setGenreResults([]); return; }
-    setGenreLoading(true);
-    try { setGenreResults(await getAnimeByGenre(genre)); } catch { setGenreResults([]); }
-    setGenreLoading(false);
-  };
 
   const selectAnime = (anime: AnimeResult) => {
     setNavStack((prev) => {
@@ -134,11 +129,11 @@ const Index = () => {
     setRandomLoading(false);
   };
 
-  const displayList = query ? results : activeGenre === "Trending" ? trending : genreResults;
-  const heading = query ? `Results for "${query}"` : activeGenre === "Trending" ? "Trending Now" : activeGenre;
-  const isLoading = searching || genreLoading || initialLoading;
+  const displayList = query ? results : trending;
+  const heading = query ? `Results for "${query}"` : "Trending Now";
+  const isLoading = searching || initialLoading;
 
-  // Show detail view (regardless of tab)
+  // Show detail view
   if (selected) {
     return (
       <div className="min-h-screen bg-background">
@@ -180,56 +175,37 @@ const Index = () => {
     );
   }
 
-  // Home tab
+  // Home tab — clean layout
   return (
     <div className="min-h-screen bg-background pb-16">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <button onClick={goHome} className="flex items-center gap-2 shrink-0">
             <img src={kogemiLogo} alt="Kogemi" className="w-7 h-7" />
             <span className="font-display font-bold text-lg text-primary tracking-tight hidden sm:inline">Kogemi</span>
           </button>
-          <SearchBar key={searchKey} onSearch={handleSearch} isSearching={searching} onClearBack={query ? goHome : undefined} />
+          <SearchBar
+            key={searchKey}
+            onSearch={handleSearch}
+            isSearching={searching}
+            onClearBack={query ? goHome : undefined}
+            titleLang={titleLang}
+            onToggleLang={() => setTitleLang((p) => (p === "en" ? "jp" : "en"))}
+          />
         </div>
       </header>
-
-      {/* Genre tabs */}
-      {!query && (
-        <div className="sticky top-14 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
-          <ScrollArea className="max-w-6xl mx-auto">
-            <div className="flex gap-1 px-4 py-2.5">
-              {GENRE_LIST.map((genre) => (
-                <button
-                  key={genre}
-                  onClick={() => handleGenreChange(genre)}
-                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    activeGenre === genre
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  {genre}
-                </button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-      )}
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Continue Watching */}
-        {!query && recentlyWatched.length > 0 && activeGenre === "Trending" && (
+        {!query && recentlyWatched.length > 0 && (
           <section className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-display font-semibold text-foreground">Continue Watching</h2>
-              </div>
+            <div className="flex items-center gap-2 mb-4">
+              <History className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-display font-semibold text-foreground">Continue Watching</h2>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {recentlyWatched.map((entry) => (
                 <button
                   key={entry.animeId}
@@ -265,24 +241,39 @@ const Index = () => {
           </section>
         )}
 
-        {/* Main grid */}
+        {/* Trending */}
         <div className="flex items-center gap-2 mb-4">
-          {!query && activeGenre === "Trending" && <Flame className="w-5 h-5 text-primary" />}
+          {!query && <Flame className="w-5 h-5 text-primary" />}
           <h2 className="text-lg font-display font-semibold text-foreground">{heading}</h2>
         </div>
 
         {isLoading && displayList.length === 0 ? (
-          <AnimeGridSkeleton count={18} />
+          <AnimeGridSkeleton count={12} />
         ) : displayList.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-16">
             {query ? "No anime found. Try a different search." : loadError || "No anime available right now."}
           </p>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {displayList.map((anime, i) => (
-              <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} />
+              <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} titleLang={titleLang} />
             ))}
           </div>
+        )}
+
+        {/* You Might Like */}
+        {!query && recommendations.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-display font-semibold text-foreground">You Might Like</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {recommendations.map((anime, i) => (
+                <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} titleLang={titleLang} />
+              ))}
+            </div>
+          </section>
         )}
       </main>
 
