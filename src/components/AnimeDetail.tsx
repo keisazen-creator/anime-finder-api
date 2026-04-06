@@ -224,6 +224,8 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbId, setImdbId] = useState<string | null>(null);
   const [faved, setFaved] = useState(() => isFavorite(anime.id));
+  const [wlStatus, setWlStatus] = useState<WatchlistStatus | null>(() => getWatchlistStatus(anime.id));
+  const [showWlMenu, setShowWlMenu] = useState(false);
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
