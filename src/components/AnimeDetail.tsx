@@ -615,10 +615,17 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            <Button onClick={() => handleWatch(rangeStart)} disabled={loading} className="gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Watch
-            </Button>
+            {(() => {
+              const progress = getWatchProgress(anime.id);
+              const resumeEp = progress ? progress.episode : rangeStart;
+              const isResume = !!progress && progress.episode > 1;
+              return (
+                <Button onClick={() => handleWatch(resumeEp)} disabled={loading} className="gap-2">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {isResume ? `Resume E${resumeEp}` : "Watch"}
+                </Button>
+              );
+            })()}
           </div>
 
           {/* Episode grid with range selector */}
