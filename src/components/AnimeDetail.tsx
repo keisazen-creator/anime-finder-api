@@ -182,6 +182,7 @@ function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: nu
 
   // Check for known long anime — match longest key first
   const sortedLongKeys = Object.entries(LONG_ANIME_EPISODES).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, knownTotal] of sortedLongKeys) {
     if (t.includes(key)) {
       // Use known total; for airing anime cap at released episodes
       const total = Math.max(effectiveEps, knownTotal);
