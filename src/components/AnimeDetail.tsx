@@ -287,8 +287,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
-  const isMovie = anime.format === "MOVIE";
-  const effectiveEps = getEffectiveEpisodeCount(anime);
+  const isMovie = anime.format === "MOVIE" || anime.format === "SPECIAL" || (anime.format === "ONA" && anime.episodes === 1);
   const layout = useMemo(() => getEpisodeLayout(title, effectiveEps, anime.episodes, anime.format), [title, effectiveEps, anime.episodes, anime.format]);
 
   // Computed values based on layout
