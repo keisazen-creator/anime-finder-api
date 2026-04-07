@@ -166,8 +166,9 @@ function getEffectiveEpisodeCount(anime: AnimeResult): number {
 function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: number): EpisodeLayout {
   const t = title.toLowerCase();
 
-  // Check for real seasons first
-  for (const [key, seasons] of Object.entries(REAL_SEASON_DATA)) {
+  // Check for real seasons first — match longest key first to avoid partial matches
+  const sortedSeasonKeys = Object.entries(REAL_SEASON_DATA).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, seasons] of sortedSeasonKeys) {
     if (t.includes(key)) {
       let absStart = 1;
       const seasonList = seasons.map((count, i) => {
@@ -179,8 +180,8 @@ function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: nu
     }
   }
 
-  // Check for known long anime — trust our database over API
-  for (const [key, knownTotal] of Object.entries(LONG_ANIME_EPISODES)) {
+  // Check for known long anime — match longest key first
+  const sortedLongKeys = Object.entries(LONG_ANIME_EPISODES).sort((a, b) => b[0].length - a[0].length);
     if (t.includes(key)) {
       // Use known total; for airing anime cap at released episodes
       const total = Math.max(effectiveEps, knownTotal);
