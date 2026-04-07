@@ -205,7 +205,7 @@ const Index = () => {
               <History className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-display font-semibold text-foreground">Continue Watching</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {recentlyWatched.map((entry) => (
                 <button
                   key={entry.animeId}
@@ -254,7 +254,7 @@ const Index = () => {
             {query ? "No anime found. Try a different search." : loadError || "No anime available right now."}
           </p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
             {displayList.map((anime, i) => (
               <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} titleLang={titleLang} />
             ))}
@@ -268,7 +268,7 @@ const Index = () => {
               <Sparkles className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-display font-semibold text-foreground">You Might Like</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {recommendations.map((anime, i) => (
                 <AnimeCard key={anime.id} anime={anime} onClick={selectAnime} index={i} titleLang={titleLang} />
               ))}
