@@ -163,13 +163,52 @@ function getEffectiveEpisodeCount(anime: AnimeResult): number {
   return anime.episodes || 24;
 }
 
-function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: number): EpisodeLayout {
+/** Extract season number from title like "Season 2", "2nd Season", "S2", "Part 2" */
+function detectSeasonFromTitle(title: string): number | null {
   const t = title.toLowerCase();
+  const patterns = [
+    /season\s*(\d+)/i,
+    /(\d+)(?:st|nd|rd|th)\s*season/i,
+    /\bs(\d+)\b/i,
+    /part\s*(\d+)/i,
+    /\b(\d+)(?:st|nd|rd|th)\s*(?:cour|part)/i,
+  ];
+  for (const p of patterns) {
+    const m = t.match(p);
+    if (m) return parseInt(m[1], 10);
+  }
+  // Check for sequel keywords implying season 2+
+  if (/\b(?:2nd|ii)\b/.test(t)) return 2;
+  if (/\b(?:3rd|iii)\b/.test(t)) return 3;
+  if (/\b(?:4th|iv)\b/.test(t)) return 4;
+  return null;
+}
+
+function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: number, format?: string): EpisodeLayout {
+  const t = title.toLowerCase();
+
+  // Movies/specials always get 1 episode — skip all database matching
+  if (format === "MOVIE" || format === "SPECIAL") {
+    return { type: "real-seasons", seasons: [{ label: "Season 1", episodeCount: 1, absoluteStart: 1 }] };
+  }
+
+  // Detect if this specific entry IS a particular season (e.g., "Frieren Season 2")
+  const detectedSeason = detectSeasonFromTitle(title);
 
   // Check for real seasons first — match longest key first to avoid partial matches
   const sortedSeasonKeys = Object.entries(REAL_SEASON_DATA).sort((a, b) => b[0].length - a[0].length);
   for (const [key, seasons] of sortedSeasonKeys) {
     if (t.includes(key)) {
+      // If this entry IS a specific season, only show that season's episodes
+      if (detectedSeason !== null && detectedSeason >= 1 && detectedSeason <= seasons.length) {
+        const epCount = seasons[detectedSeason - 1];
+        const actualEps = effectiveEps > 0 ? Math.min(effectiveEps, epCount) : epCount;
+        return {
+          type: "real-seasons",
+          seasons: [{ label: `Season ${detectedSeason}`, episodeCount: actualEps, absoluteStart: 1 }],
+        };
+      }
+      // Otherwise show all seasons
       let absStart = 1;
       const seasonList = seasons.map((count, i) => {
         const s = { label: `Season ${i + 1}`, episodeCount: count, absoluteStart: absStart };
@@ -184,7 +223,14 @@ function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: nu
   const sortedLongKeys = Object.entries(LONG_ANIME_EPISODES).sort((a, b) => b[0].length - a[0].length);
   for (const [key, knownTotal] of sortedLongKeys) {
     if (t.includes(key)) {
-      // Use known total; for airing anime cap at released episodes
+      // If detected as a specific season, just use the effective episode count
+      if (detectedSeason !== null) {
+        const eps = effectiveEps > 0 ? effectiveEps : 24;
+        return {
+          type: "real-seasons",
+          seasons: [{ label: `Season ${detectedSeason}`, episodeCount: eps, absoluteStart: 1 }],
+        };
+      }
       const total = Math.max(effectiveEps, knownTotal);
       const chunkSize = 100;
       const chunks: ChunkedLayout["chunks"] = [];
@@ -241,9 +287,9 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
 
   const title = anime.title.english || anime.title.romaji;
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
-  const isMovie = anime.format === "MOVIE";
+  const isMovie = anime.format === "MOVIE" || anime.format === "SPECIAL" || (anime.format === "ONA" && anime.episodes === 1);
   const effectiveEps = getEffectiveEpisodeCount(anime);
-  const layout = useMemo(() => getEpisodeLayout(title, effectiveEps, anime.episodes), [title, effectiveEps, anime.episodes]);
+  const layout = useMemo(() => getEpisodeLayout(title, effectiveEps, anime.episodes, anime.format), [title, effectiveEps, anime.episodes, anime.format]);
 
   // Computed values based on layout
   const { rangeStart, rangeEnd, totalEps, displayEpisodes } = useMemo(() => {
