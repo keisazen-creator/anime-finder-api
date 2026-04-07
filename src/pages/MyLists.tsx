@@ -110,7 +110,7 @@ const MyLists = ({ onSelect }: Props) => {
                 No anime in {statusFilter === "all" ? "your watchlist" : WATCHLIST_LABELS[statusFilter as WatchlistStatus].toLowerCase()} yet.
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {filteredWatchlist.map((entry) => (
                   <button
                     key={entry.animeId}
@@ -144,7 +144,7 @@ const MyLists = ({ onSelect }: Props) => {
           favorites.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-16">No favorites yet.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {favorites.map((entry) => (
                 <button
                   key={entry.animeId}
