@@ -289,7 +289,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
   const isMovie = anime.format === "MOVIE";
   const effectiveEps = getEffectiveEpisodeCount(anime);
-  const layout = useMemo(() => getEpisodeLayout(title, effectiveEps, anime.episodes), [title, effectiveEps, anime.episodes]);
+  const layout = useMemo(() => getEpisodeLayout(title, effectiveEps, anime.episodes, anime.format), [title, effectiveEps, anime.episodes, anime.format]);
 
   // Computed values based on layout
   const { rangeStart, rangeEnd, totalEps, displayEpisodes } = useMemo(() => {
