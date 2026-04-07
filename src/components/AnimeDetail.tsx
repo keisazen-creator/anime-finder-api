@@ -98,6 +98,8 @@ const LONG_ANIME_EPISODES: Record<string, number> = {
   "one piece": 1122,
   "naruto shippuden": 500,
   "naruto shippuuden": 500,
+  "naruto: shippuden": 500,
+  "naruto: shippuuden": 500,
   "naruto": 220,
   "bleach": 366,
   "bleach: thousand-year blood war": 52,
@@ -108,12 +110,17 @@ const LONG_ANIME_EPISODES: Record<string, number> = {
   "fairy tail": 328,
   "fairy tail: final series": 51,
   "gintama": 367,
+  "gintama'": 51,
+  "gintama°": 51,
+  "gintama.": 12,
   "black clover": 170,
   "detective conan": 1150,
   "case closed": 1150,
+  "meitantei conan": 1150,
   "boruto": 293,
   "boruto: naruto next generations": 293,
   "inuyasha": 193,
+  "inuyasha: the final act": 26,
   "yu-gi-oh": 224,
   "yu-gi-oh! duel monsters": 224,
   "pokemon": 276,
@@ -125,6 +132,7 @@ const LONG_ANIME_EPISODES: Record<string, number> = {
   "hunter x hunter (2011)": 148,
   "hunter x hunter": 148,
   "d.gray-man": 116,
+  "d.gray-man hallow": 13,
   "katekyo hitman reborn": 203,
   "katekyo hitman reborn!": 203,
   "urusei yatsura": 195,
@@ -139,6 +147,7 @@ const LONG_ANIME_EPISODES: Record<string, number> = {
   "initial d": 86,
   "beyblade": 51,
   "digimon adventure": 54,
+  "shippuuden": 500,
 };
 
 /** Determine actual available episodes, respecting airing status and format */
@@ -157,8 +166,9 @@ function getEffectiveEpisodeCount(anime: AnimeResult): number {
 function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: number): EpisodeLayout {
   const t = title.toLowerCase();
 
-  // Check for real seasons first
-  for (const [key, seasons] of Object.entries(REAL_SEASON_DATA)) {
+  // Check for real seasons first — match longest key first to avoid partial matches
+  const sortedSeasonKeys = Object.entries(REAL_SEASON_DATA).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, seasons] of sortedSeasonKeys) {
     if (t.includes(key)) {
       let absStart = 1;
       const seasonList = seasons.map((count, i) => {
@@ -170,10 +180,12 @@ function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: nu
     }
   }
 
-  // Check for known long anime
-  for (const [key, knownTotal] of Object.entries(LONG_ANIME_EPISODES)) {
+  // Check for known long anime — match longest key first
+  const sortedLongKeys = Object.entries(LONG_ANIME_EPISODES).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, knownTotal] of sortedLongKeys) {
     if (t.includes(key)) {
-      const total = Math.min(effectiveEps, knownTotal);
+      // Use known total; for airing anime cap at released episodes
+      const total = Math.max(effectiveEps, knownTotal);
       const chunkSize = 100;
       const chunks: ChunkedLayout["chunks"] = [];
       for (let i = 0; i < total; i += chunkSize) {
@@ -603,10 +615,17 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
               </button>
             </div>
 
-            <Button onClick={() => handleWatch(rangeStart)} disabled={loading} className="gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Watch
-            </Button>
+            {(() => {
+              const progress = getWatchProgress(anime.id);
+              const resumeEp = progress ? progress.episode : rangeStart;
+              const isResume = !!progress && progress.episode > 1;
+              return (
+                <Button onClick={() => handleWatch(resumeEp)} disabled={loading} className="gap-2">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {isResume ? `Resume E${resumeEp}` : "Watch"}
+                </Button>
+              );
+            })()}
           </div>
 
           {/* Episode grid with range selector */}
