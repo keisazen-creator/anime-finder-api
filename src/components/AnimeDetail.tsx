@@ -179,10 +179,11 @@ function getEpisodeLayout(title: string, effectiveEps: number, totalPlanned?: nu
     }
   }
 
-  // Check for known long anime
+  // Check for known long anime — trust our database over API
   for (const [key, knownTotal] of Object.entries(LONG_ANIME_EPISODES)) {
     if (t.includes(key)) {
-      const total = Math.min(effectiveEps, knownTotal);
+      // Use known total; for airing anime cap at released episodes
+      const total = Math.max(effectiveEps, knownTotal);
       const chunkSize = 100;
       const chunks: ChunkedLayout["chunks"] = [];
       for (let i = 0; i < total; i += chunkSize) {
