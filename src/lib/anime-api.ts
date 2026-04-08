@@ -313,6 +313,7 @@ export interface StreamServers {
   megaplayAni: string;
   vidfast: string;
   vidsrc: string;
+  vidsrcRu: string;
 }
 
 export function getStreamUrls(
@@ -321,10 +322,29 @@ export function getStreamUrls(
   episode: number,
   lang: StreamLang = "sub",
   imdb?: string,
+  tmdbId?: number,
   season?: number,
-  relativeEp?: number
+  relativeEp?: number,
+  isMovie?: boolean
 ): StreamServers {
   const epId = anilistId * 100 + episode; // rough unique ep id
+  const s = season ?? 1;
+  const ep = relativeEp ?? episode;
+
+  // vidsrc.ru URLs
+  let vidsrcRuUrl: string;
+  if (isMovie && tmdbId) {
+    vidsrcRuUrl = `https://vidsrc.ru/movie/${tmdbId}?autoplay=true&colour=7c3aed`;
+  } else if (isMovie && imdb) {
+    vidsrcRuUrl = `https://vidsrc.ru/movie/${imdb}?autoplay=true&colour=7c3aed`;
+  } else if (tmdbId) {
+    vidsrcRuUrl = `https://vidsrc.ru/tv/${tmdbId}/${s}/${ep}?autoplay=true&colour=7c3aed&autonextepisode=true`;
+  } else if (imdb) {
+    vidsrcRuUrl = `https://vidsrc.ru/tv/${imdb}/${s}/${ep}?autoplay=true&colour=7c3aed&autonextepisode=true`;
+  } else {
+    vidsrcRuUrl = `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`;
+  }
+
   return {
     megaplayAniwatch: `https://megaplay.buzz/stream/s-2/${epId}/${lang}`,
     megaplayMal: malId
@@ -332,10 +352,11 @@ export function getStreamUrls(
       : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
     megaplayAni: `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
     vidfast: imdb
-      ? `https://vidfast.pro/tv/${imdb}/${season ?? 1}/${relativeEp ?? episode}?autoPlay=true&theme=7c3aed`
+      ? `https://vidfast.pro/tv/${imdb}/${s}/${ep}?autoPlay=true&theme=7c3aed`
       : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
     vidsrc: imdb
-      ? `https://vidsrc.xyz/embed/tv?imdb=${imdb}&season=${season ?? 1}&episode=${relativeEp ?? episode}`
+      ? `https://vidsrc.xyz/embed/tv?imdb=${imdb}&season=${s}&episode=${ep}`
       : `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${lang}`,
+    vidsrcRu: vidsrcRuUrl,
   };
 }

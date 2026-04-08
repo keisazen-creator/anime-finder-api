@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
-import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
+import { saveWatchProgress, getWatchProgress, updateWatchTimestamp, initVidsrcProgressSync } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getWatchlistStatus, setWatchlistStatus, type WatchlistStatus, WATCHLIST_LABELS } from "@/lib/watchlist";
 import AnimeRecommendations from "@/components/AnimeRecommendations";
@@ -25,6 +25,7 @@ const SERVER_LABELS: Record<ServerKey, string> = {
   megaplayAni: "MegaPlay 3",
   vidfast: "VidFast",
   vidsrc: "VidSrc",
+  vidsrcRu: "VidSrc.RU",
 };
 
 // ── Episode layout ──
@@ -280,7 +281,9 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [lang, setLang] = useState<StreamLang>("sub");
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
-  const [imdbId, setImdbId] = useState<string | null>(null);
+  const [imdbData, setImdbData] = useState<{ imdb: string; tmdb: number } | null>(null);
+  const imdbId = imdbData?.imdb ?? null;
+  const tmdbId = imdbData?.tmdb ?? null;
   const [faved, setFaved] = useState(() => isFavorite(anime.id));
   const [wlStatus, setWlStatus] = useState<WatchlistStatus | null>(() => getWatchlistStatus(anime.id));
   const [showWlMenu, setShowWlMenu] = useState(false);
@@ -341,9 +344,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   }, [anime.id, layout]);
 
   const buildStream = useCallback(
-    (absEp: number, currentLang: StreamLang, currentImdb: string | null) => {
-      // For API calls, we always use absolute episode
-      // Season is determined by which season/chunk this episode falls in
+    (absEp: number, currentLang: StreamLang, currentImdb: string | null, currentTmdb?: number | null) => {
       let apiSeason = 1;
       let relativeEp = absEp;
       if (layout.type === "real-seasons") {
@@ -355,16 +356,27 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
           relativeEp = absEp - layout.seasons[sIdx].absoluteStart + 1;
         }
       }
-      return getStreamUrls(anime.id, null, absEp, currentLang, currentImdb ?? undefined, apiSeason, relativeEp);
+      return getStreamUrls(anime.id, null, absEp, currentLang, currentImdb ?? undefined, currentTmdb ?? undefined, apiSeason, relativeEp, isMovie);
     },
-    [anime.id, layout]
+    [anime.id, layout, isMovie]
   );
+
+  // Listen for vidsrc.ru watch progress messages
+  useEffect(() => {
+    if (!playerOpen) return;
+    const cleanup = initVidsrcProgressSync((data) => {
+      if (data.progress) {
+        updateWatchTimestamp(anime.id, data.progress.watched, data.progress.duration);
+      }
+    });
+    return cleanup;
+  }, [playerOpen, anime.id]);
 
   useEffect(() => {
     let active = true;
     if (!imdbId) {
       getImdbId(title).then((result) => {
-        if (active && result) setImdbId(result.imdb);
+        if (active && result) setImdbData(result);
       }).catch(() => {});
     }
     return () => { active = false; };
@@ -394,16 +406,16 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
         updatedAt: Date.now(),
       });
 
-      setStreamUrls(buildStream(absEp, lang, imdbId));
+      setStreamUrls(buildStream(absEp, lang, imdbId, tmdbId));
       setPlayerOpen(true);
     },
-    [imdbId, title, totalEps, lang, buildStream, anime, layout]
+    [imdbId, tmdbId, title, totalEps, lang, buildStream, anime, layout]
   );
 
   const toggleLang = (newLang: StreamLang) => {
     setLang(newLang);
     if (playerOpen) {
-      setStreamUrls(buildStream(currentEp, newLang, imdbId));
+      setStreamUrls(buildStream(currentEp, newLang, imdbId, tmdbId));
     }
   };
 
