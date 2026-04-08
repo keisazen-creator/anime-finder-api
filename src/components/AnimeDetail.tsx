@@ -367,7 +367,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
     let active = true;
     if (!imdbId) {
       getImdbId(title).then((result) => {
-        if (active && result) setImdbId(result.imdb);
+        if (active && result) setImdbData(result);
       }).catch(() => {});
     }
     return () => { active = false; };
