@@ -344,9 +344,7 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   }, [anime.id, layout]);
 
   const buildStream = useCallback(
-    (absEp: number, currentLang: StreamLang, currentImdb: string | null) => {
-      // For API calls, we always use absolute episode
-      // Season is determined by which season/chunk this episode falls in
+    (absEp: number, currentLang: StreamLang, currentImdb: string | null, currentTmdb?: number | null) => {
       let apiSeason = 1;
       let relativeEp = absEp;
       if (layout.type === "real-seasons") {
@@ -358,10 +356,21 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
           relativeEp = absEp - layout.seasons[sIdx].absoluteStart + 1;
         }
       }
-      return getStreamUrls(anime.id, null, absEp, currentLang, currentImdb ?? undefined, apiSeason, relativeEp);
+      return getStreamUrls(anime.id, null, absEp, currentLang, currentImdb ?? undefined, currentTmdb ?? undefined, apiSeason, relativeEp, isMovie);
     },
-    [anime.id, layout]
+    [anime.id, layout, isMovie]
   );
+
+  // Listen for vidsrc.ru watch progress messages
+  useEffect(() => {
+    if (!playerOpen) return;
+    const cleanup = initVidsrcProgressSync((data) => {
+      if (data.progress) {
+        updateWatchTimestamp(anime.id, data.progress.watched, data.progress.duration);
+      }
+    });
+    return cleanup;
+  }, [playerOpen, anime.id]);
 
   useEffect(() => {
     let active = true;
