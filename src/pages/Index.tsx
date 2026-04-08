@@ -226,7 +226,11 @@ const Index = () => {
                       <X className="w-3 h-3" />
                     </button>
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
-                      <div className="h-full bg-primary rounded-r-full" style={{ width: `${Math.min((entry.episode / entry.totalEpisodes) * 100, 100)}%` }} />
+                      <div className="h-full bg-primary rounded-r-full" style={{ width: `${
+                        entry.timestamp && entry.duration
+                          ? Math.min((entry.timestamp / entry.duration) * 100, 100)
+                          : Math.min((entry.episode / Math.max(entry.totalEpisodes, 1)) * 100, 100)
+                      }%` }} />
                     </div>
                   </div>
                   <div className="p-2.5">
