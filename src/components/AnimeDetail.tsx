@@ -279,6 +279,8 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [server, setServer] = useState<ServerKey>("megaplayAni");
   const [lang, setLang] = useState<StreamLang>("sub");
+  const [error, setError] = useState<string | null>(null);
+  const [playerOpen, setPlayerOpen] = useState(false);
   const [imdbData, setImdbData] = useState<{ imdb: string; tmdb: number } | null>(null);
   const imdbId = imdbData?.imdb ?? null;
   const tmdbId = imdbData?.tmdb ?? null;
