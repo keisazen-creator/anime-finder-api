@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AnimeResult } from "@/lib/anime-api";
 import { getImdbId, getStreamUrls, type StreamLang, type StreamServers } from "@/lib/anime-api";
-import { saveWatchProgress, getWatchProgress } from "@/lib/watch-history";
+import { saveWatchProgress, getWatchProgress, updateWatchTimestamp, initVidsrcProgressSync } from "@/lib/watch-history";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getWatchlistStatus, setWatchlistStatus, type WatchlistStatus, WATCHLIST_LABELS } from "@/lib/watchlist";
 import AnimeRecommendations from "@/components/AnimeRecommendations";
@@ -25,6 +25,7 @@ const SERVER_LABELS: Record<ServerKey, string> = {
   megaplayAni: "MegaPlay 3",
   vidfast: "VidFast",
   vidsrc: "VidSrc",
+  vidsrcRu: "VidSrc.RU",
 };
 
 // ── Episode layout ──
@@ -278,9 +279,9 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [server, setServer] = useState<ServerKey>("megaplayAni");
   const [lang, setLang] = useState<StreamLang>("sub");
-  const [error, setError] = useState<string | null>(null);
-  const [playerOpen, setPlayerOpen] = useState(false);
-  const [imdbId, setImdbId] = useState<string | null>(null);
+  const [imdbData, setImdbData] = useState<{ imdb: string; tmdb: number } | null>(null);
+  const imdbId = imdbData?.imdb ?? null;
+  const tmdbId = imdbData?.tmdb ?? null;
   const [faved, setFaved] = useState(() => isFavorite(anime.id));
   const [wlStatus, setWlStatus] = useState<WatchlistStatus | null>(() => getWatchlistStatus(anime.id));
   const [showWlMenu, setShowWlMenu] = useState(false);
