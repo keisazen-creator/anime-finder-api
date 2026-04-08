@@ -406,16 +406,16 @@ const AnimeDetail = ({ anime, onBack, onSelect }: Props) => {
         updatedAt: Date.now(),
       });
 
-      setStreamUrls(buildStream(absEp, lang, imdbId));
+      setStreamUrls(buildStream(absEp, lang, imdbId, tmdbId));
       setPlayerOpen(true);
     },
-    [imdbId, title, totalEps, lang, buildStream, anime, layout]
+    [imdbId, tmdbId, title, totalEps, lang, buildStream, anime, layout]
   );
 
   const toggleLang = (newLang: StreamLang) => {
     setLang(newLang);
     if (playerOpen) {
-      setStreamUrls(buildStream(currentEp, newLang, imdbId));
+      setStreamUrls(buildStream(currentEp, newLang, imdbId, tmdbId));
     }
   };
 
