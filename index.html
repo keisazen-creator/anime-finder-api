@@ -22,25 +22,33 @@
     <link rel="dns-prefetch" href="https://kogemi-api-3.onrender.com" />
     <link rel="dns-prefetch" href="https://megaplay.buzz" />
 
-    <!-- ❌ REMOVED manifest (fix logo issue) -->
+    <!-- ❌ REMOVED manifest -->
 
-    <!-- ✅ Force reload (cache bust) -->
-    <script type="module" crossorigin src="./assets/index-DcrqjfEH.js?v=5"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-C3LedwVV.css?v=5">
+    <!-- ✅ Cache bust -->
+    <script type="module" crossorigin src="./assets/index-DcrqjfEH.js?v=6"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C3LedwVV.css?v=6">
   </head>
 
   <body>
     <div id="root"></div>
 
-    <!-- ✅ REMOVE SERVICE WORKER (VERY IMPORTANT) -->
+    <!-- 🔥 FULL CACHE + SERVICE WORKER RESET -->
     <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (const reg of registrations) {
-            reg.unregister();
+      (async () => {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            await reg.unregister();
           }
-        });
-      }
+        }
+
+        if (window.caches) {
+          const keys = await caches.keys();
+          for (const key of keys) {
+            await caches.delete(key);
+          }
+        }
+      })();
     </script>
   </body>
 </html>
