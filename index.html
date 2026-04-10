@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Kogemi - Watch Anime Free</title>
+
     <meta name="description" content="Kogemi - Stream anime for free with sub and dub options. Browse trending, action, romance, comedy and more." />
     <meta name="author" content="Kogemi" />
     <meta name="theme-color" content="#1a1a2e" />
@@ -13,20 +15,32 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Preconnect to API origins -->
+    <!-- Preconnect -->
     <link rel="preconnect" href="https://graphql.anilist.co" crossorigin />
     <link rel="preconnect" href="https://s4.anilist.co" crossorigin />
     <link rel="dns-prefetch" href="https://api.themoviedb.org" />
     <link rel="dns-prefetch" href="https://kogemi-api-3.onrender.com" />
     <link rel="dns-prefetch" href="https://megaplay.buzz" />
 
-    <!-- ✅ FIXED PATHS -->
-    <link rel="manifest" href="./manifest.json" />
-    <script type="module" crossorigin src="./assets/index-DcrqjfEH.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-C3LedwVV.css">
+    <!-- ❌ REMOVED manifest (fix logo issue) -->
+
+    <!-- ✅ Force reload (cache bust) -->
+    <script type="module" crossorigin src="./assets/index-DcrqjfEH.js?v=5"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C3LedwVV.css?v=5">
   </head>
 
   <body>
     <div id="root"></div>
+
+    <!-- ✅ REMOVE SERVICE WORKER (VERY IMPORTANT) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        });
+      }
+    </script>
   </body>
 </html>
